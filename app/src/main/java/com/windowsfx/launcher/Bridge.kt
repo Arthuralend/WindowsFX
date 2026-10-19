@@ -54,6 +54,8 @@ class Bridge(private val act: MainActivity) {
     // ================================================================ files
 
     @JavascriptInterface fun hasAccess(): String = ok(fs.hasAccess())
+    @JavascriptInterface fun keyRoute(on: Boolean): String { act.routeKeys = on; return ok() }
+    @JavascriptInterface fun cursors(on: Boolean): String { Cursors.enabled = on; return ok() }
     @JavascriptInterface fun requestAccess(): String { ui { fs.requestAccess(act) }; return ok() }
     @JavascriptInterface fun roots(): String = run { fs.roots() }
     @JavascriptInterface fun stat(p: String): String = run { fs.stat(p) }
@@ -62,6 +64,7 @@ class Bridge(private val act: MainActivity) {
     @JavascriptInterface fun readBase64(p: String, max: Double): String = run { fs.readBase64(p, max.toLong()) }
     @JavascriptInterface fun writeText(p: String, s: String): String = run { fs.writeText(p, s) }
     @JavascriptInterface fun writeBase64(p: String, b: String): String = run { fs.writeBase64(p, b) }
+    @JavascriptInterface fun writeChunk(p: String, b: String, append: Boolean, done: Boolean, mtime: Double): String = run { fs.writeChunk(p, b, append, done, mtime.toLong()) }
     @JavascriptInterface fun mkdir(p: String): String = run { fs.mkdir(p) }
     @JavascriptInterface fun rename(p: String, n: String): String = run { fs.rename(p, n) }
     @JavascriptInterface fun remove(p: String): String = run { fs.remove(p) }
@@ -202,6 +205,16 @@ class Bridge(private val act: MainActivity) {
     }
     @JavascriptInterface fun webSnapshot(id: String): String { ui { act.browser.snapshot(id) }; return ok() }
     @JavascriptInterface fun webDestroy(id: String): String { ui { act.browser.destroy(id) }; return ok() }
+
+    // ---- Видеоплеер (libVLC)
+    @JavascriptInterface fun vlcCreate(id: String): String { ui { act.video.create(id) }; return ok() }
+    @JavascriptInterface fun vlcOpen(id: String, path: String, startMs: Double, hw: Boolean, subEnc: String): String { ui { act.video.open(id, path, startMs.toLong(), hw, subEnc) }; return ok() }
+    @JavascriptInterface fun vlcCmd(id: String, cmd: String, arg: String): String { ui { act.video.cmd(id, cmd, arg) }; return ok() }
+    @JavascriptInterface fun vlcInfo(id: String): String = run { act.video.info(id) }
+    @JavascriptInterface fun vlcBounds(id: String, x: Int, y: Int, w: Int, h: Int, visible: Boolean): String { ui { act.video.bounds(id, x, y, w, h, visible) }; return ok() }
+    @JavascriptInterface fun vlcSnapshot(id: String): String { ui { act.video.snapshot(id) }; return ok() }
+    @JavascriptInterface fun vlcDestroy(id: String): String { ui { act.video.destroy(id) }; return ok() }
+    @JavascriptInterface fun vlcHideAll(): String { ui { act.video.hideAll() }; return ok() }
     @JavascriptInterface
     fun launchUrl(url: String): String {
         ui { act.apps.start(act, Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)), inWindow = true) }

@@ -186,7 +186,7 @@ function openSettings(args = {}) {
       const s5 = sec('О WindowsFX');
       s5.append(
         row('info', 'Версия', `WindowsFX ${esc(info.version || '—')} · ${esc(info.model || '')} · Android ${esc(info.android || '')}`, null),
-        row('star', 'Компоненты с открытым кодом', 'Lexicon — WordCraft, Tabs — GridCraft, Prism — PhotoCraft (ArtCraft, MIT/Apache-2.0); просмотр PDF — pdf.js (Apache-2.0); DOOM — js-dos (GPL-2.0); перетаскивание — mobile-drag-drop (MIT)', null),
+        row('star', 'Компоненты с открытым кодом', 'Lexicon, Tabs, Photostore — движки WordCraft, GridCraft, PhotoCraft (MIT/Apache-2.0); русский словарь — А. Лебедев (BSD); архиватор — 7-Zip (LGPL-2.1, unRAR); видеоплеер — libVLC (LGPL-2.1); просмотр PDF — pdf.js (Apache-2.0); DOOM — js-dos (GPL-2.0); перетаскивание — mobile-drag-drop (MIT)', null),
       );
       pg.append(s1, s2, s3, s4, s5);
       if (args.page === 'fx-windows' && !ff.supported) setTimeout(freeformHelp, 300);

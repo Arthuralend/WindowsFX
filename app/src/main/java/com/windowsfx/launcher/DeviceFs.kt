@@ -133,6 +133,19 @@ class DeviceFs(private val ctx: Context) {
         scan(f)
     }
 
+    /** Запись частями (архиватор): первая часть создаёт файл, остальные дописываются. */
+    fun writeChunk(path: String, b64: String, append: Boolean, done: Boolean, mtime: Long) {
+        need()
+        val f = File(path)
+        if (f.isDirectory) throw FsError("EISDIR", "is a folder")
+        f.parentFile?.mkdirs()
+        java.io.FileOutputStream(f, append).use { if (b64.isNotEmpty()) it.write(Base64.decode(b64, Base64.DEFAULT)) }
+        if (done) {
+            if (mtime > 0) f.setLastModified(mtime)
+            scan(f)
+        }
+    }
+
     fun mkdir(path: String) {
         need()
         val f = File(path)

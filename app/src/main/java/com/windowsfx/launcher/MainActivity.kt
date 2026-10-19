@@ -48,12 +48,14 @@ class MainActivity : Activity() {
     lateinit var web: WebView
         private set
     private lateinit var browserLayer: FrameLayout
+    private lateinit var videoLayer: FrameLayout
     private lateinit var fullLayer: FrameLayout
     lateinit var fs: DeviceFs
         private set
     lateinit var apps: AndroidApps
         private set
     lateinit var browser: BrowserHost
+    lateinit var video: VideoHost
         private set
 
     private var fileCallback: ValueCallback<Array<Uri>>? = null
@@ -81,17 +83,20 @@ class MainActivity : Activity() {
 
         val root = FrameLayout(this)
         root.setBackgroundColor(Color.BLACK)
-        web = WebView(this)
+        web = FxWebView(this)
         browserLayer = FrameLayout(this)
+        videoLayer = FrameLayout(this)
         fullLayer = FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             visibility = View.GONE
         }
         root.addView(web, FrameLayout.LayoutParams(-1, -1))
+        root.addView(videoLayer, FrameLayout.LayoutParams(-1, -1))
         root.addView(browserLayer, FrameLayout.LayoutParams(-1, -1))
         root.addView(fullLayer, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
         browser = BrowserHost(this, browserLayer)
+        video = VideoHost(this, videoLayer)
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         val s = web.settings
@@ -169,6 +174,7 @@ class MainActivity : Activity() {
             unregisterReceiver(receiver)
         } catch (_: Exception) {
         }
+        runCatching { video.onDestroy() }
         web.destroy()
         super.onDestroy()
     }
@@ -183,6 +189,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         browser.onPause()
+        video.onPause()
         web.onPause()
         super.onPause()
     }
@@ -201,6 +208,36 @@ class MainActivity : Activity() {
         }
         // the desktop decides: close a menu, go back in the browser, minimise a window…
         web.evaluateJavascript("window.FXHost ? FXHost.back() : false", null)
+    }
+
+    /** Set from the desktop while a Lexicon / Tabs / Photostore window has the keyboard. */
+    @Volatile var routeKeys = false
+
+    private val navKeys = mapOf(
+        KeyEvent.KEYCODE_DPAD_UP to "ArrowUp", KeyEvent.KEYCODE_DPAD_DOWN to "ArrowDown",
+        KeyEvent.KEYCODE_DPAD_LEFT to "ArrowLeft", KeyEvent.KEYCODE_DPAD_RIGHT to "ArrowRight",
+        KeyEvent.KEYCODE_PAGE_UP to "PageUp", KeyEvent.KEYCODE_PAGE_DOWN to "PageDown",
+        KeyEvent.KEYCODE_MOVE_HOME to "Home", KeyEvent.KEYCODE_MOVE_END to "End",
+        KeyEvent.KEYCODE_FORWARD_DEL to "Delete", KeyEvent.KEYCODE_TAB to "Tab", KeyEvent.KEYCODE_ESCAPE to "Escape",
+    )
+
+    /** Navigation keys for the Craft apps go straight to their canvas: with the on-screen text field
+     *  focused, Android keyboards often deliver arrows as IME events the apps never see. */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (routeKeys && ::web.isInitialized && web.hasFocus() &&
+            (event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP)
+        ) {
+            val key = navKeys[event.keyCode]
+            if (key != null) {
+                val type = if (event.action == KeyEvent.ACTION_DOWN) "keydown" else "keyup"
+                web.evaluateJavascript(
+                    "window.FXHost&&FXHost.key&&FXHost.key('$type','$key','$key',${event.isShiftPressed},${event.isCtrlPressed},${event.isAltPressed},${event.isMetaPressed})",
+                    null,
+                )
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

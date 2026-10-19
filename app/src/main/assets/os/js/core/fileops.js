@@ -13,11 +13,13 @@ const FileOps = (() => {
       case 'text': case 'code': return d.text || 'notepad';
       case 'html': return d.html || 'browser';
       case 'image': return d.image || 'photos';
-      case 'audio': case 'video': return t.kind === 'video' ? 'photos' : (d.audio || 'music');
+      case 'audio': return d.audio || 'music';
+      case 'video': return (Apps.get(d.video) && d.video) || (Apps.get('fxplayer') ? 'fxplayer' : 'photos');
+      case 'archive': return Apps.get('winarch') ? 'winarch' : null;
       case 'pdf': return d.pdf || 'pdf';
       case 'doc': return d.doc || 'lexicon';
       case 'sheet': return d.sheet || 'tabs';
-      case 'psd': return d.psd || 'prism';
+      case 'psd': return Apps.alias(d.psd || 'photostore');
       default: return null;
     }
   }
@@ -216,11 +218,13 @@ const FileOps = (() => {
     const list = [['notepad', 'Блокнот'], ['browser', 'Браузер']];
     if (t.kind === 'image') list.unshift(['photos', 'Фотографии'], ['paint', 'Paint']);
     if (t.kind === 'audio' || t.kind === 'video') list.unshift(['music', 'Медиаплеер']);
-    if (t.kind === 'video') list.unshift(['photos', 'Фотографии']);
+    if (t.kind === 'video') list.unshift(['photos', 'Фотографии'], ['fxplayer', 'Видеоплеер']);
+    if (t.kind === 'audio') list.unshift(['fxplayer', 'Видеоплеер']);
+    if (t.kind === 'archive') list.unshift(['winarch', 'WinArchivator']);
     if (t.kind === 'pdf') list.unshift(['pdf', 'Просмотр PDF']);
     if (t.kind === 'doc' || t.kind === 'text') list.unshift(['lexicon', 'Lexicon']);
     if (t.kind === 'sheet' || FS.ext(path) === 'csv') list.unshift(['tabs', 'Tabs']);
-    if (t.kind === 'image' || t.kind === 'psd') list.unshift(['prism', 'Prism']);
+    if (t.kind === 'image' || t.kind === 'psd') list.unshift(['photostore', 'Photostore']);
     const items = list.filter(([a]) => Apps.get(a)).map(([a, n]) => ({ label: n, icon: 'app:' + Apps.get(a).icon, action: () => openWith(path, a) }));
     if (FS.isDevice(path)) items.push({ sep: true }, { label: 'Приложение Android…', icon: 'external', action: () => FX.call('openExternal', FS.toNative(path), true) });
     return items;
@@ -238,6 +242,7 @@ const FileOps = (() => {
       single && t.kind === 'folder' ? { label: 'Открыть в новом окне', icon: 'external', action: () => Apps.launch('explorer', { path: p, newWindow: true }) } : null,
       single && t.kind === 'folder' ? { label: 'Открыть в терминале', icon: 'terminal', action: () => Apps.launch('terminal', { cwd: p }) } : null,
       single && node?.t === 'f' && !['lnk', 'exe'].includes(t.kind) ? { label: 'Открыть с помощью', icon: 'apps', items: openWithItems(p) } : null,
+      typeof WinArch !== 'undefined' ? WinArch.menuEntry(paths) : null,
       single && t.kind === 'image' ? { label: 'Сделать фоном рабочего стола', icon: 'image', action: () => setWallpaper(p) } : null,
       single && t.kind === 'folder' && canPaste() ? { label: 'Вставить', icon: 'paste', action: () => paste(p) } : null,
       { sep: true },

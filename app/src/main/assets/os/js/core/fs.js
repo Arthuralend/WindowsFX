@@ -68,7 +68,9 @@ const FS = (() => {
               'Документы.lnk': lnk('explorer', { path: P.docs }),
               'Lexicon.lnk': lnk('lexicon'),
               'Tabs.lnk': lnk('tabs'),
-              'Prism.lnk': lnk('prism'),
+              'Photostore.lnk': lnk('photostore'),
+              'WinArchivator.lnk': lnk('winarch'),
+              'Видеоплеер.lnk': lnk('fxplayer'),
               'Фотографии.lnk': lnk('photos'),
               'Просмотр PDF.lnk': lnk('pdf'),
               'Параметры.lnk': lnk('settings'),
@@ -126,6 +128,28 @@ const FS = (() => {
         save();
       }
     }
+    migrateDesktop();
+  }
+
+  /** 0.4: Prism → Photostore, новые ярлыки WinArchivator и Видеоплеер (один раз) */
+  function migrateDesktop() {
+    try {
+      const parts = split(P.desktop);
+      let d = root[parts[0]];
+      for (const k of parts.slice(1)) d = d && d.c && d.c[k];
+      if (!d || !d.c) return;
+      let ch = false;
+      if (d.c['Prism.lnk']) { d.c['Photostore.lnk'] = d.c['Prism.lnk']; d.c['Photostore.lnk'].c = JSON.stringify({ app: 'photostore' }); delete d.c['Prism.lnk']; ch = true; }
+      const done = Persist.get('fxmig', []);
+      const add = { 'WinArchivator.lnk': 'winarch', 'Видеоплеер.lnk': 'fxplayer' };
+      for (const [n, app] of Object.entries(add)) {
+        if (done.includes(app)) continue;
+        if (!d.c[n]) { d.c[n] = F(JSON.stringify({ app })); ch = true; }
+        done.push(app);
+      }
+      Persist.set('fxmig', done);
+      if (ch) save();
+    } catch (e) { console.warn('desktop migration', e); }
   }
 
   const save = debounce(() => {
@@ -702,7 +726,7 @@ const FS = (() => {
     png: ['image', 'Изображение PNG', 'file-image'], jpg: ['image', 'Изображение JPEG', 'file-image'], jpeg: ['image', 'Изображение JPEG', 'file-image'],
     gif: ['image', 'Изображение GIF', 'file-image'], webp: ['image', 'Изображение WebP', 'file-image'], svg: ['image', 'Изображение SVG', 'file-image'], bmp: ['image', 'Точечный рисунок', 'file-image'],
     mp3: ['audio', 'Аудиофайл MP3', 'file-audio'], wav: ['audio', 'Аудиофайл WAV', 'file-audio'], ogg: ['audio', 'Аудиофайл OGG', 'file-audio'], m4a: ['audio', 'Аудиофайл M4A', 'file-audio'], flac: ['audio', 'Аудиофайл FLAC', 'file-audio'],
-    mp4: ['video', 'Видеофайл MP4', 'file-video'], webm: ['video', 'Видеофайл WebM', 'file-video'],
+    mp4: ['video', 'Видеофайл MP4', 'file-video'], webm: ['video', 'Видеофайл WebM', 'file-video'], avi: ['video', 'Видеофайл AVI', 'file-video'], wmv: ['video', 'Видеофайл WMV', 'file-video'], flv: ['video', 'Видеофайл FLV', 'file-video'], mpg: ['video', 'Видеофайл MPEG', 'file-video'], mpeg: ['video', 'Видеофайл MPEG', 'file-video'], m4v: ['video', 'Видеофайл M4V', 'file-video'], ts: ['video', 'Видеопоток MPEG-TS', 'file-video'], m2ts: ['video', 'Видеофайл M2TS', 'file-video'], mts: ['video', 'Видеофайл AVCHD', 'file-video'], vob: ['video', 'Видеофайл DVD', 'file-video'], ogv: ['video', 'Видеофайл OGG', 'file-video'], rmvb: ['video', 'Видеофайл RealMedia', 'file-video'], asf: ['video', 'Видеофайл ASF', 'file-video'], divx: ['video', 'Видеофайл DivX', 'file-video'], f4v: ['video', 'Видеофайл F4V', 'file-video'],
     lnk: ['lnk', 'Ярлык', 'file-generic'], exe: ['exe', 'Приложение', 'file-generic'],
     pdf: ['pdf', 'Документ PDF', 'file-pdf'],
     docx: ['doc', 'Документ Word', 'file-doc'], doc: ['doc', 'Документ Word 97–2003', 'file-doc'], odt: ['doc', 'Документ OpenDocument', 'file-doc'], rtf: ['doc', 'Документ RTF', 'file-doc'],
@@ -710,7 +734,7 @@ const FS = (() => {
     psd: ['psd', 'Изображение Photoshop', 'file-psd'],
     heic: ['image', 'Изображение HEIC', 'file-image'], mkv: ['video', 'Видеофайл MKV', 'file-video'], mov: ['video', 'Видеофайл MOV', 'file-video'], '3gp': ['video', 'Видеофайл 3GP', 'file-video'],
     aac: ['audio', 'Аудиофайл AAC', 'file-audio'], opus: ['audio', 'Аудиофайл OPUS', 'file-audio'],
-    apk: ['apk', 'Пакет приложения Android', 'file-apk'], zip: ['other', 'Сжатая ZIP-папка', 'file-generic'],
+    apk: ['apk', 'Пакет приложения Android', 'file-apk'], zip: ['archive', 'Архив ZIP', 'file-archive'], rar: ['archive', 'Архив RAR', 'file-archive'], '7z': ['archive', 'Архив 7-Zip', 'file-archive'], tar: ['archive', 'Архив TAR', 'file-archive'], gz: ['archive', 'Архив GZip', 'file-archive'], tgz: ['archive', 'Архив TAR.GZ', 'file-archive'], bz2: ['archive', 'Архив BZip2', 'file-archive'], tbz2: ['archive', 'Архив TAR.BZ2', 'file-archive'], xz: ['archive', 'Архив XZ', 'file-archive'], txz: ['archive', 'Архив TAR.XZ', 'file-archive'], zst: ['archive', 'Архив Zstandard', 'file-archive'], lz: ['archive', 'Архив LZip', 'file-archive'], lzma: ['archive', 'Архив LZMA', 'file-archive'], z: ['archive', 'Архив Z', 'file-archive'], iso: ['archive', 'Образ диска ISO', 'file-archive'], cab: ['archive', 'Архив CAB', 'file-archive'], arj: ['archive', 'Архив ARJ', 'file-archive'], lzh: ['archive', 'Архив LZH', 'file-archive'], lha: ['archive', 'Архив LHA', 'file-archive'], cpio: ['archive', 'Архив CPIO', 'file-archive'], wim: ['archive', 'Образ WIM', 'file-archive'], dmg: ['archive', 'Образ DMG', 'file-archive'], vhd: ['archive', 'Образ VHD', 'file-archive'], img: ['archive', 'Образ диска', 'file-archive'], jar: ['archive', 'Архив Java', 'file-archive'], deb: ['archive', 'Пакет DEB', 'file-archive'], rpm: ['archive', 'Пакет RPM', 'file-archive'], chm: ['archive', 'Справка CHM', 'file-archive'], msi: ['archive', 'Пакет MSI', 'file-archive'], epub: ['archive', 'Книга EPUB', 'file-archive'],
   };
   let FOLDER_ICONS = { [P.desktop]: 'folder-desktop', [P.docs]: 'folder-docs', [P.downloads]: 'folder-downloads', [P.pictures]: 'folder-images', [P.music]: 'folder-music', [P.videos]: 'folder-video' };
 

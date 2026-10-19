@@ -295,9 +295,9 @@ const UI = (() => {
         </div>
         <div class="pk-foot">
           <label>Имя файла:</label>
-          <input class="input pk-name" value="${esc(opts.name || '')}" ${mode === 'open' ? 'readonly placeholder="Выберите файл"' : ''}>
+          <input class="input pk-name" value="${esc(opts.name || '')}" ${mode !== 'save' ? 'readonly placeholder="Выберите файл"' : ''}>
           <span class="pk-type">${esc(opts.typeLabel || (kinds ? 'Поддерживаемые файлы' : 'Все файлы (*.*)'))}</span>
-          <button class="btn primary pk-ok">${mode === 'save' ? 'Сохранить' : 'Открыть'}</button>
+          <button class="btn primary pk-ok">${opts.okLabel || (mode === 'save' ? 'Сохранить' : mode === 'folder' ? 'Выбрать папку' : 'Открыть')}</button>
           <button class="btn pk-cancel">Отмена</button>
         </div>
       </div>`);
@@ -316,6 +316,7 @@ const UI = (() => {
       });
 
       function matches(item) {
+        if (mode === 'folder') return item.isDir;
         if (item.isDir) return true;
         if (!kinds) return true;
         return kinds.includes(FS.typeOf(item.path, item.node).kind);
@@ -336,14 +337,17 @@ const UI = (() => {
             $$('.pk-item.sel', listEl).forEach(x => x.classList.remove('sel'));
             row.classList.add('sel');
             if (!it.isDir) { selected = it.path; nameIn.value = it.name; }
+            else if (mode === 'folder') { selected = it.path; nameIn.value = it.name; }
           };
           row.ondblclick = () => it.isDir ? go(it.path) : (selected = it.path, nameIn.value = it.name, ok());
           listEl.append(row);
         });
+        if (mode === 'folder') nameIn.value = FS.basename(cur) || FS.display(cur);
       }
 
       const finish = (v) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(v); };
       async function ok() {
+        if (mode === 'folder') { finish(FS.realPath(selected || cur)); return; }
         if (mode === 'open') {
           if (!selected) {
             const n = nameIn.value.trim();

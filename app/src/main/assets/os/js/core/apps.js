@@ -3,13 +3,17 @@
 
 const Apps = (() => {
   const reg = new Map();
+  // Старые идентификаторы (ярлыки и закрепления из прошлых версий)
+  const alias = { prism: 'photostore' };
   return {
     register(def) { reg.set(def.id, def); },
     unregister(id) { reg.delete(id); },
-    get: id => reg.get(id),
+    get: id => reg.get(alias[id] || id),
+    alias: id => alias[id] || id,
     all: () => [...reg.values()].filter(a => !a.hidden),
     /** Запустить приложение. Для single-приложений повторный запуск фокусирует существующее окно. */
     launch(id, args = {}) {
+      id = alias[id] || id;
       const app = reg.get(id);
       if (!app) { UI.alert('Ошибка', `Приложение «${id}» не найдено.`, 'error'); return null; }
       if (app.single) {

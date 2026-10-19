@@ -12,7 +12,13 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
-        versionName = "0.3." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+        versionName = "0.4." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+        // libVLC (video player) ships native code: ARM tablets and phones, plus x86_64 (emulators, Chromebooks)
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+    }
+
+    packaging {
+        jniLibs { useLegacyPackaging = true }
     }
 
     // Fixed key so every new build installs over the previous one without uninstalling.
@@ -54,4 +60,6 @@ android {
 dependencies {
     // Lets the launcher use Android's hidden "launch in freeform window" option (Android 9+).
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
+    // Video player engine (LGPL-2.1): plays MKV, AVI, WMV, FLV, TS, MP4, MOV, WebM, AC-3/DTS, subtitles
+    implementation("org.videolan.android:libvlc-all:3.6.5")
 }

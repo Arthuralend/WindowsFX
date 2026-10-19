@@ -22,7 +22,7 @@ const Store = (() => {
     showSeconds: false,
     pinned: ['explorer', 'browser', 'lexicon', 'tabs', 'photos', 'settings'],
     // Пуск
-    startPinned: ['explorer', 'browser', 'lexicon', 'tabs', 'prism', 'pdf', 'photos', 'settings', 'notepad', 'calculator', 'paint', 'terminal', 'music', 'clock', 'calendar', 'weather', 'taskmgr', 'camera', 'assistant', 'minesweeper', 'game2048', 'doom'],
+    startPinned: ['explorer', 'browser', 'lexicon', 'tabs', 'photostore', 'winarch', 'fxplayer', 'pdf', 'photos', 'settings', 'notepad', 'calculator', 'paint', 'terminal', 'music', 'clock', 'calendar', 'weather', 'taskmgr', 'camera', 'assistant', 'minesweeper', 'game2048', 'doom'],
     showRecommended: true,
     // Рабочий стол
     desktopIcons: true,
@@ -59,7 +59,7 @@ const Store = (() => {
     weatherCity: 'Москва',
     weatherUnits: 'C',
     startupApps: [],
-    defaultApps: { text: 'notepad', image: 'photos', audio: 'music', html: 'browser', pdf: 'pdf', doc: 'lexicon', sheet: 'tabs', psd: 'prism' },
+    defaultApps: { text: 'notepad', image: 'photos', audio: 'music', html: 'browser', pdf: 'pdf', doc: 'lexicon', sheet: 'tabs', psd: 'photostore', archive: 'winarch', video: 'fxplayer' },
     androidWindows: true,
     immersive: true,
     uiScale: 100,
@@ -75,6 +75,15 @@ const Store = (() => {
   let data;
   try { data = { ...defaults, ...(JSON.parse(localStorage.getItem(KEY)) || {}) }; }
   catch { data = { ...defaults }; }
+  // Prism → Photostore (0.4); новые типы файлов по умолчанию
+  (function migrate() {
+    const ren = a => Array.isArray(a) ? [...new Set(a.map(x => x === 'prism' ? 'photostore' : x))] : a;
+    for (const k of ['pinned', 'startPinned', 'startupApps']) data[k] = ren(data[k]);
+    data.defaultApps = { ...defaults.defaultApps, ...(data.defaultApps || {}) };
+    if (data.defaultApps.psd === 'prism') data.defaultApps.psd = 'photostore';
+    if (Array.isArray(data.startPinned)) for (const id of ['winarch', 'fxplayer']) if (!data.startPinned.includes(id) && !(data.migrated || []).includes(id)) data.startPinned.push(id);
+    data.migrated = [...new Set([...(data.migrated || []), 'winarch', 'fxplayer'])];
+  })();
 
   const em = new Emitter();
   let frozen = false;

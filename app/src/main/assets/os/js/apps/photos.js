@@ -116,7 +116,7 @@ function openPhotos(args = {}) {
     return [
       { label: 'Открыть', icon: 'image', action: () => { idx = list.indexOf(p); renderOne(); } },
       kind === 'image' ? { label: 'Изменить в Paint', icon: 'brush', action: () => Apps.launch('paint', { path: p }) } : null,
-      kind === 'image' && Apps.get('prism') ? { label: 'Изменить в Prism', icon: 'app:prism', action: () => Apps.launch('prism', { path: p }) } : null,
+      kind === 'image' && Apps.get('photostore') ? { label: 'Изменить в Photostore', icon: 'app:photostore', action: () => Apps.launch('photostore', { path: p }) } : null,
       kind === 'image' ? { label: 'Сделать фоном рабочего стола', icon: 'desktop', action: () => FileOps.setWallpaper(p) } : null,
       FS.isDevice(p) ? { label: 'Поделиться…', icon: 'share', action: () => FX.call('share', FS.toNative(p)) } : null,
       FS.isDevice(p) ? { label: 'Открыть в другом приложении', icon: 'external', action: () => FX.call('openExternal', FS.toNative(p), true) } : null,
@@ -190,7 +190,7 @@ function openPhotos(args = {}) {
       $('.ph-zo', b).onclick = () => { zoom = Math.max(0.2, zoom / 1.3); if (zoom <= 1) { tx = ty = 0; } apply(); };
       $('.ph-fit', b).onclick = () => { zoom = 1; tx = ty = 0; apply(); };
       $('.ph-rot', b).onclick = () => { rot += 90; apply(); };
-      $('.ph-edit', b).onclick = () => Apps.launch(Apps.get('prism') ? 'prism' : 'paint', { path: p });
+      $('.ph-edit', b).onclick = () => Apps.launch(Apps.get('photostore') ? 'photostore' : 'paint', { path: p });
       bindGestures($('.ph2-stage', b), media, apply);
     } else bindSwipe($('.ph2-stage', b));
     renderStrip();

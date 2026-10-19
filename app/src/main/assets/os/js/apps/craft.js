@@ -1,5 +1,5 @@
-/* Lexicon (WordCraft), Tabs (GridCraft), Prism (PhotoCraft): приложения на WebAssembly в окнах WindowsFX.
-   Движки — открытые проекты ArtCraft (MIT OR Apache-2.0), без изменений. */
+/* Lexicon, Tabs, Photostore: офисные и графические приложения на WebAssembly в окнах WindowsFX.
+   Движки — открытый код (MIT OR Apache-2.0), собираются с изменениями WindowsFX (tools/craft-patch.sh). */
 'use strict';
 
 const CraftApps = {
@@ -13,9 +13,9 @@ const CraftApps = {
     keywords: 'excel эксель таблица xlsx csv gridcraft tabs', kinds: ['sheet'], exts: ['xlsx', 'xls', 'ods', 'csv'],
     defExt: 'xlsx', dir: () => FS.P.docs, width: 1160, height: 760,
   },
-  prism: {
-    name: 'Prism', icon: 'prism', engine: 'PhotoCraft', desc: 'Графический редактор, аналог Photoshop',
-    keywords: 'photoshop фотошоп фото редактор слои psd photocraft prism', kinds: ['image', 'psd'], exts: ['psd', 'png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif', 'tif', 'tiff'],
+  photostore: {
+    name: 'Photostore', icon: 'photostore', engine: 'PhotoCraft', desc: 'Графический редактор, аналог Photoshop',
+    keywords: 'photoshop фотошоп фото редактор слои psd ps photostore prism', kinds: ['image', 'psd'], exts: ['psd', 'png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif', 'tif', 'tiff'],
     defExt: 'png', dir: () => FS.P.pictures, width: 1200, height: 800,
   },
 };
@@ -40,7 +40,7 @@ const CraftHost = (() => {
   function kindsForAccept(appId, accept) {
     if (!accept) return null;
     const exts = accept.split(',').map(s => s.trim().toLowerCase()).filter(s => s.startsWith('.')).map(s => s.slice(1));
-    if (exts.some(e => ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].includes(e)) && appId !== 'prism') return ['image'];
+    if (exts.some(e => ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].includes(e)) && appId !== 'photostore') return ['image'];
     return null;
   }
 
@@ -110,7 +110,7 @@ function openCraft(appId, args = {}) {
   const win = WM.open({ app: appId, title: def.name, width: def.width, height: def.height, minWidth: 420, minHeight: 320, bodyClass: 'fx-fill',
     beforeClose: () => UI.confirm(def.name, `Закрыть ${def.name}? Несохранённые изменения будут потеряны.`) });
   const b = win.body;
-  b.innerHTML = `<div class="fx-loading">${Icons.get(def.icon, 64)}<div>Запуск ${esc(def.name)}…</div><div class="muted small">на движке ${esc(def.engine)}</div></div>`;
+  b.innerHTML = `<div class="fx-loading">${Icons.get(def.icon, 64)}<div>Запуск ${esc(def.name)}…</div></div>`;
   const frame = h(`<iframe class="fx-frame" allow="clipboard-read; clipboard-write; fullscreen" allowfullscreen></iframe>`);
   const e = { appId, win, frame, pending: args.path || null, path: null, ready: false };
   frame.addEventListener('load', () => {
@@ -120,7 +120,7 @@ function openCraft(appId, args = {}) {
     e.titleT = setInterval(() => {
       try {
         const t = frame.contentDocument?.title || '';
-        if (!e.path && t && !/^(WordCraft|GridCraft|PhotoCraft)$/i.test(t)) win.setTitle(t.replace(/(WordCraft|GridCraft|PhotoCraft)/g, def.name));
+        if (!e.path && t && !/^(WordCraft|GridCraft|PhotoCraft|Lexicon|Tabs|Photostore)$/i.test(t)) win.setTitle(t.replace(/(WordCraft|GridCraft|PhotoCraft|Lexicon|Tabs|Photostore)/g, def.name));
       } catch {}
     }, 2000);
   });
@@ -129,7 +129,7 @@ function openCraft(appId, args = {}) {
     frame.src = `../craft/${appId}/index.html`;
     b.append(frame);
   }).catch(() => {
-    b.innerHTML = `<div class="fx-access">${Icons.get(def.icon, 64)}<h2>${esc(def.name)} ещё не установлен</h2><p>Движок ${esc(def.engine)} не вошёл в эту сборку WindowsFX. Он будет добавлен в следующей версии.</p></div>`;
+    b.innerHTML = `<div class="fx-access">${Icons.get(def.icon, 64)}<h2>${esc(def.name)} ещё не установлен</h2><p>Приложение не вошло в эту сборку WindowsFX. Оно будет добавлено в следующей версии.</p></div>`;
   });
   win.onArgs = a => { if (a.path) { if (e.ready) CraftHost.openInto(e, a.path); else e.pending = a.path; } };
   win.onClose = () => { clearInterval(e.titleT); try { CraftHost.unregister(frame.contentWindow); } catch {} };
@@ -141,3 +141,23 @@ Object.entries(CraftApps).forEach(([id, def]) => Apps.register({
   launch: args => openCraft(id, args),
 }));
 window.CraftHost = CraftHost;
+
+// Клавиши навигации: пока клавиатура в окне Lexicon / Tabs / Photostore, Android отдаёт стрелки
+// напрямую (FXHost.key), минуя поле ввода — иначе экранная клавиатура может их «съесть».
+(function craftKeys() {
+  let routed = false;
+  const activeFrame = () => { const a = document.activeElement; return a && a.classList && a.classList.contains('fx-frame') ? a : null; };
+  function update() {
+    const on = !!activeFrame();
+    if (on !== routed) { routed = on; FX.tryCall('keyRoute', on); }
+  }
+  window.addEventListener('blur', () => setTimeout(update, 0));
+  window.addEventListener('focus', () => setTimeout(update, 0));
+  document.addEventListener('focusin', update);
+  document.addEventListener('pointerdown', () => setTimeout(update, 0), true);
+  window.FXHost.key = (type, key, code, shift, ctrl, alt, meta) => {
+    const f = activeFrame();
+    if (!f) { update(); return; }
+    try { f.contentWindow.CraftGuest?.key(type, key, code, shift, ctrl, alt, meta); } catch {}
+  };
+})();

@@ -1,15 +1,17 @@
-name: Build Craft engines (Lexicon, Tabs, Prism)
+name: Build Craft engines (Lexicon, Tabs, Photostore)
 
 # Builds the WebAssembly versions of WordCraft, GridCraft and PhotoCraft (MIT OR Apache-2.0)
-# with one WindowsFX change: egui-wgpu asks the GPU only for the texture size it supports
-# (tools/patch-egui-wgpu.sh). Results go to the "craft-assets" release; the APK build
-# downloads them from there.
+# as Lexicon, Tabs and Photostore, with the WindowsFX changes:
+#   - tools/craft-patch.sh: product names, no community links, Russian interface on the web,
+#     the Photostore mark, Russian spelling dictionary for Lexicon;
+#   - tools/patch-egui-wgpu.sh: egui-wgpu asks the GPU only for the texture size it supports.
+# Results go to the "craft-assets" release; the APK build downloads them from there.
 
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths: [ ".github/workflows/craft-web.yml", "tools/patch-egui-wgpu.sh" ]
+    paths: [ ".github/workflows/craft-web.yml", "tools/patch-egui-wgpu.sh", "tools/craft-patch.sh", "tools/craft/**" ]
 
 permissions:
   contents: write
@@ -44,6 +46,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: WindowsFX changes (names, links, language, dictionary)
+        run: bash wfx/tools/craft-patch.sh ${{ matrix.app }} src
+
       - name: Patch egui-wgpu (GPU texture limit)
         run: bash wfx/tools/patch-egui-wgpu.sh src
 
@@ -73,8 +78,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: craft-assets
-          name: Craft engines (Lexicon, Tabs, Prism)
-          body: "Web builds of WordCraft, GridCraft and PhotoCraft used by WindowsFX, with egui-wgpu limited to the GPU's texture size."
+          name: Craft engines (Lexicon, Tabs, Photostore)
+          body: "Web builds of WordCraft, GridCraft and PhotoCraft (MIT OR Apache-2.0) used by WindowsFX as Lexicon, Tabs and Photostore (tools/craft-patch.sh), with egui-wgpu limited to the GPU's texture size."
           files: out/${{ matrix.app }}-web.zip
           prerelease: true
           make_latest: false

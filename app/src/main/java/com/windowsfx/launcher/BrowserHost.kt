@@ -42,7 +42,7 @@ class BrowserHost(private val act: MainActivity, private val layer: FrameLayout)
 
     fun create(id: String, url: String) {
         if (views.containsKey(id)) return
-        val w = WebView(act)
+        val w = FxWebView(act)
         val s = w.settings
         s.javaScriptEnabled = true
         s.domStorageEnabled = true

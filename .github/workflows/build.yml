@@ -6,7 +6,7 @@ on:
     paths-ignore: [ ".github/workflows/craft-web.yml", "tools/**" ]
   workflow_dispatch:
   workflow_run:
-    workflows: [ "Build Craft engines (Lexicon, Tabs, Prism)" ]
+    workflows: [ "Build Craft engines (Lexicon, Tabs, Photostore)" ]
     types: [ completed ]
 
 permissions:
@@ -28,30 +28,43 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Download Craft engines (Lexicon, Tabs, Prism)
+      - name: Download Craft engines (Lexicon, Tabs, Photostore)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           C=app/src/main/assets/craft
-          mkdir -p $C/lexicon $C/tabs $C/prism tmpc
+          mkdir -p $C/lexicon $C/tabs $C/photostore tmpc
           for e in wordcraft gridcraft photocraft; do
             gh release download craft-assets -R ${{ github.repository }} -p "$e-web.zip" -D tmpc
             unzip -q "tmpc/$e-web.zip" -d "tmpc/$e"
           done
           cp -R tmpc/wordcraft/*/. $C/lexicon/
           cp -R tmpc/gridcraft/*/. $C/tabs/
-          cp -R tmpc/photocraft/*/. $C/prism/
+          cp -R tmpc/photocraft/*/. $C/photostore/
           ls -la $C/*/index.html
           du -sh $C/*
 
       - name: Build
-        run: gradle :app:assembleRelease --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          gradle :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Publish build log (on failure)
+        if: failure()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ci-logs
+          name: CI logs
+          body: "Logs of failed APK builds."
+          files: build.log
+          prerelease: true
+          make_latest: false
 
       - name: Rename APK
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/release/app-release.apk "out/WindowsFX-0.3.${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "out/WindowsFX-0.4.${{ github.run_number }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -62,7 +75,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: WindowsFX 0.3.${{ github.run_number }}
+          name: WindowsFX 0.4.${{ github.run_number }}
           body: "Автоматическая сборка. Скачайте APK ниже и установите на устройство."
           files: out/*.apk
           make_latest: true

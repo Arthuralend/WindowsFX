@@ -4,14 +4,18 @@
 
 WindowsFX превращает планшет или телефон в настольный компьютер: окна, панель задач, меню «Пуск», настоящие файлы устройства, Android-приложения и полноценные офисные программы.
 
-## Что внутри (0.3)
+## Что внутри (0.4)
 
 - **Рабочий стол** на основе веб-концепта Windows 12: окна с прикреплением к краям, виртуальные рабочие столы, представление задач, виджеты, быстрые настройки, центр уведомлений, экран блокировки.
 - **Проводник с настоящей памятью устройства**: диск D: — внутренняя память, E: — SD-карта; Документы, Загрузки, Изображения, Музыка и Видео — реальные папки устройства. Копирование и перемещение (в том числе перетаскиванием пальцем), корзина с восстановлением, поиск, «Поделиться», открытие в Android-приложениях.
 - **Android-приложения** в «Пуске», поиске и на панели задач, запуск в окнах (если на устройстве включён оконный режим).
-- **Lexicon** — текстовый редактор, аналог Word (движок [WordCraft](https://github.com/storytold/wordcraft)).
+- **Lexicon** — текстовый редактор, аналог Word (движок [WordCraft](https://github.com/storytold/wordcraft)), с проверкой русской орфографии.
 - **Tabs** — электронные таблицы, аналог Excel (движок [GridCraft](https://github.com/storytold/gridcraft)).
-- **Prism** — графический редактор, аналог Photoshop (движок [PhotoCraft](https://github.com/storytold/photocraft)).
+- **Photostore** — графический редактор, аналог Photoshop (движок [PhotoCraft](https://github.com/storytold/photocraft)).
+- **WinArchivator** — архиватор: открывает ZIP, RAR (включая RAR5), 7Z, TAR, GZ, BZ2, XZ, ZST, ISO, CAB, ARJ, LZH, WIM и другие, создаёт 7Z/ZIP/TAR/TAR.GZ/TAR.BZ2/TAR.XZ с паролем AES-256; пункты «Извлечь здесь» и «Добавить в архив» в Проводнике. Имена файлов из русской Windows (CP866) читаются правильно.
+- **Видеоплеер** на движке libVLC: MKV, AVI, MP4, MOV, WMV, FLV, TS, VOB, WebM, RMVB, звук AC-3/DTS/FLAC, субтитры SRT/ASS/SSA, выбор дорожек, скорость, списки, продолжение с места остановки.
+- **Управление пальцами**: касание двумя пальцами — правая кнопка мыши, движение двумя пальцами — прокрутка (с инерцией), щипок — масштаб в Lexicon/Tabs/Photostore.
+- **Указатель мыши** в стиле Windows (стрелка, рука, I-образный курсор, стрелки изменения размера) вместо круглого указателя Android.
 - **Браузер** на движке Chromium (Android WebView) с вкладками, закладками и загрузками.
 - **Фотографии**: альбомы по папкам, жесты масштабирования, листание свайпом, слайд-шоу, видео, сведения о файле.
 - **Просмотр PDF** на pdf.js: миниатюры, масштаб, поиск по тексту, ночной режим.
@@ -37,9 +41,14 @@ adb shell settings put global force_resizable_activities 1
 ## Сборка
 
 APK собирается GitHub Actions (`.github/workflows/build.yml`); движки Craft скачиваются при сборке.
-WordCraft для Lexicon собирается отдельно (`.github/workflows/craft-web.yml`).
+Движки Lexicon, Tabs и Photostore собираются отдельно (`.github/workflows/craft-web.yml`) из исходников
+WordCraft, GridCraft и PhotoCraft с изменениями WindowsFX (`tools/craft-patch.sh`, `tools/craft/*.patch`,
+`tools/patch-egui-wgpu.sh`).
 
 ## Открытый код
 
-WordCraft, GridCraft, PhotoCraft — ArtCraft, MIT OR Apache-2.0 (используются без изменений; ArtCraft — товарный знак владельцев).
+WordCraft, GridCraft, PhotoCraft — MIT OR Apache-2.0 (изменённые версии: названия, язык, словарь; тексты лицензий лежат рядом с движками).
+Русский словарь Hunspell (LibreOffice ru_RU) — © 1997–2008 Alexander I. Lebedev, лицензия BSD; в WindowsFX — изменённая версия (только формат хранения).
+7-Zip (WinArchivator) — © Игорь Павлов, GNU LGPL 2.1 + ограничение unRAR; сборка 7z-wasm, исправлено чтение имён CP866.
+libVLC (Видеоплеер) — VideoLAN, GNU LGPL 2.1.
 pdf.js — Apache-2.0. js-dos — GPL-2.0. mobile-drag-drop — MIT.
