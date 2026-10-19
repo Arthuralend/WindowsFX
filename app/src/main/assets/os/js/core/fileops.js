@@ -282,7 +282,7 @@ const FileOps = (() => {
 
   /** Отображаемое имя элемента (ярлыки и известные расширения скрываются) */
   function label(name, node) {
-    if (!node || node.t === 'd') return typeof I18N !== 'undefined' ? I18N.name(name) : name;
+    if (!node || node.t === 'd') return name;
     const e = FS.ext(name);
     if (e === 'lnk') return FS.stem(name);
     if (!Store.get('showExtensions') && e && FS.typeOf(name, node).kind !== 'other') return FS.stem(name);

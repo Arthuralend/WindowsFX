@@ -576,7 +576,8 @@ function openSettings(args = {}) {
     time() {
       pg.append(header('Время и язык'));
       const now = h(`<div class="st-hero" style="grid-template-columns:1fr"><div><b class="st-clock" style="font-size:2rem;font-family:var(--font-display)"></b><div class="muted st-clock-d"></div></div></div>`);
-      const upd = () => { if (!now.isConnected) return clearInterval(t); $('.st-clock', now).textContent = fmtTime(Date.now(), true); $('.st-clock-d', now).textContent = cap(fmtDateLong(Date.now())); };
+      let seen = false;
+      const upd = () => { if (now.isConnected) seen = true; else if (seen) return clearInterval(t); $('.st-clock', now).textContent = fmtTime(Date.now(), true); $('.st-clock-d', now).textContent = cap(fmtDateLong(Date.now())); };
       const t = setInterval(upd, 1000); upd();
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const off = -new Date().getTimezoneOffset() / 60;
@@ -585,8 +586,6 @@ function openSettings(args = {}) {
         row('clock', 'Показывать секунды в часах на панели задач', null, tgl('showSeconds')),
         row('globe', 'Часовой пояс', `(UTC${off >= 0 ? '+' : ''}${off}) ${tz} — определяется автоматически`, null),
         row('sunrise', 'Синхронизация', 'Время синхронизируется с вашим устройством', null));
-      const s2 = sec('Язык и регион');
-      s2.append(row('lang', 'Язык интерфейса WindowsFX', 'Меню, окна и программы. После выбора рабочий стол перезапустится', selectEl(I18N.lang(), I18N.LANGS.map(l => [l.id, l.name]), v => I18N.setLang(v))));
       const s2b = sec('Языки ввода (клавиатура)');
       const langRow = id => {
         const L = Kbd.LANGS[id];
@@ -616,7 +615,7 @@ function openSettings(args = {}) {
       cityIn.onkeydown = e => { if (e.key === 'Enter') applyCity(); };
       s3.append(row('location', 'Город для прогноза', 'Используется в виджетах, на панели задач и в приложении «Погода»', [cityIn, btn('Сохранить', applyCity, 'sm')]),
         row('thermo', 'Единицы измерения', null, sel('weatherUnits', [['C', 'Цельсий (°C)'], ['F', 'Фаренгейт (°F)']])));
-      pg.append(now, s, s2, s2b, s3);
+      pg.append(now, s, s2b, s3);
     },
 
     accessibility() {
