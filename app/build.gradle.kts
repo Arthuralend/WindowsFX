@@ -50,3 +50,8 @@ android {
         abortOnError = false
     }
 }
+
+dependencies {
+    // Lets the launcher use Android's hidden "launch in freeform window" option (Android 9+).
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
+}

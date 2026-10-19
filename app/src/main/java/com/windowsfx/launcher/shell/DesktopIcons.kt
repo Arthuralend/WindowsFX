@@ -2,6 +2,7 @@ package com.windowsfx.launcher.shell
 
 import android.annotation.SuppressLint
 import android.graphics.Color
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -17,6 +18,9 @@ import com.windowsfx.launcher.core.W
 import com.windowsfx.launcher.core.dp
 import com.windowsfx.launcher.core.dpf
 import com.windowsfx.launcher.core.pressable
+import com.windowsfx.launcher.core.rounded
+import com.windowsfx.launcher.core.Th
+import com.windowsfx.launcher.files.DragFiles
 
 /** Desktop shortcuts, laid out in columns from the top-left like Windows. */
 @SuppressLint("ViewConstructor")
@@ -64,6 +68,23 @@ class DesktopIcons(private val act: DesktopActivity) : FrameLayout(act) {
         setOnClickListener { _ -> act.start.hide(); it.open() }
         setOnLongClickListener { v -> itemMenu(v, it); true }
         tag = it.key
+        // dropping a file on Notepad / Paint / PDF shortcuts opens it there
+        val target = Builtin.byKey(it.key.removePrefix("b:"))?.takeIf { b ->
+            b == Builtin.NOTEPAD || b == Builtin.PAINT || b == Builtin.PDF
+        }
+        if (target != null) setOnDragListener { v, e ->
+            val payload = DragFiles.payload(e) ?: return@setOnDragListener false
+            when (e.action) {
+                DragEvent.ACTION_DRAG_ENTERED -> {
+                    DragFiles.track(v, e)
+                    v.background = pressable(rounded(Th.p.selection, dpf(6)), dpf(6))
+                }
+                DragEvent.ACTION_DRAG_LOCATION -> DragFiles.track(v, e)
+                DragEvent.ACTION_DRAG_EXITED, DragEvent.ACTION_DRAG_ENDED -> v.background = pressable(null, dpf(6))
+                DragEvent.ACTION_DROP -> payload.files.firstOrNull { f -> f.isFile }?.let { f -> act.windows.open(target, f) }
+            }
+            true
+        }
     }
 
     private fun arrange() {

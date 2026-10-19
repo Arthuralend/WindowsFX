@@ -124,7 +124,8 @@ object Files {
         val i = Intent(Intent.ACTION_VIEW).setDataAndType(uriFor(f), mime(f))
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
-            act.startActivity(if (chooser) Intent.createChooser(i, act.getString(R.string.open_with)) else i)
+            if (chooser) act.startActivity(Intent.createChooser(i, act.getString(R.string.open_with)))
+            else com.windowsfx.launcher.shell.AndroidApps.startInWindow(act, i)
         } catch (_: ActivityNotFoundException) {
             W.toast(act, act.getString(R.string.no_app_for_file))
         }

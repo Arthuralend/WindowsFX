@@ -112,6 +112,10 @@ class PaintView(private val act: DesktopActivity, private val win: FxWindow, sta
         selectColor(Color.BLACK)
         canvasView.stroke = 6f
         win.onArgument = { a -> (a as? File)?.let { load(it) } }
+        win.onFileDrop = { files ->
+            val img = files.firstOrNull { it.isFile && Files.ext(it) in Files.IMAGE }
+            if (img != null) load(img) else W.toast(act, act.getString(R.string.drop_not_supported))
+        }
         if (start != null) post { load(start) }
         updateTitle()
     }

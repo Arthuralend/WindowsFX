@@ -89,6 +89,10 @@ class PdfView(private val act: DesktopActivity, private val win: FxWindow, start
 
         win.onClosed = { closeDoc(); exec.shutdown() }
         win.onArgument = { a -> (a as? File)?.let { openFile(it) } }
+        win.onFileDrop = { files ->
+            val pdf = files.firstOrNull { it.isFile && it.name.endsWith(".pdf", ignoreCase = true) }
+            if (pdf != null) openFile(pdf) else W.toast(act, act.getString(R.string.drop_not_supported))
+        }
         if (start != null) openFile(start)
     }
 

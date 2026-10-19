@@ -5,10 +5,13 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.text.format.DateFormat
+import android.view.DragEvent
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -25,6 +28,7 @@ import com.windowsfx.launcher.core.dp
 import com.windowsfx.launcher.core.dpf
 import com.windowsfx.launcher.core.pressable
 import com.windowsfx.launcher.core.rounded
+import com.windowsfx.launcher.files.DragFiles
 import com.windowsfx.launcher.files.Files
 import com.windowsfx.launcher.files.Storage
 import com.windowsfx.launcher.wm.FxWindow
@@ -37,8 +41,11 @@ object FileClipboard {
     var cut = false
 }
 
-/** File Explorer: "This PC", drives, folders, copy / cut / paste / rename / delete. */
-@SuppressLint("ViewConstructor")
+/**
+ * File Explorer: "This PC", drives, folders, selection of several files,
+ * drag and drop between folders and windows, copy / cut / paste / rename / delete.
+ */
+@SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, start: File?) : LinearLayout(act) {
 
     private class Entry(val file: File, val label: String? = null, val icon: Int? = null, val sub: String? = null)
@@ -53,15 +60,25 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
     private val nav = W.vbox(act)
     private val navScroll = ScrollView(act)
     private val permissionPanel = W.vbox(act)
+    private val selectBar = W.hbox(act)
+    private val selectCount = W.text(act, "", 13f, Th.p.text, bold = true)
     private var entries: List<Entry> = emptyList()
     private val main = Handler(Looper.getMainLooper())
-    private val onResume: () -> Unit = { refresh() }
+    private val onChange: () -> Unit = { refresh() }
+
+    // selection
+    private var selectMode = false
+    private val selected = linkedSetOf<String>()
+
+    // drag highlight
+    private var hoverPos = -1
+    private var listHover = false
 
     init {
         orientation = VERTICAL
         setBackgroundColor(Th.p.surface)
 
-        // toolbar
+        // ---- toolbar
         val tb = W.toolbar(act)
         tb.addView(W.iconButton(act, R.drawable.ic_back, act.getString(R.string.back)) { goBack() })
         tb.addView(W.iconButton(act, R.drawable.ic_up, act.getString(R.string.up)) { goUp() })
@@ -71,23 +88,44 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         crumbScroll.background = rounded(Th.p.surface3, dpf(6), 1, Th.p.border)
         crumbScroll.setPadding(dp(4), 0, dp(4), 0)
         tb.addView(crumbScroll, W.lp(0, dp(32), 1f).apply { setMargins(dp(6), 0, dp(6), 0) })
+        tb.addView(W.iconButton(act, R.drawable.ic_check, act.getString(R.string.select)) { setSelectMode(!selectMode) })
         tb.addView(W.iconButton(act, R.drawable.ic_new_folder, act.getString(R.string.new_folder)) { newFolder() })
         tb.addView(W.iconButton(act, R.drawable.ic_paste, act.getString(R.string.paste)) { paste() })
         tb.addView(W.iconButton(act, R.drawable.ic_more, act.getString(R.string.more)) { v -> moreMenu(v) })
         addView(tb, W.lp(W.MATCH, W.WRAP))
 
-        // body: navigation pane + list
+        // ---- selection action bar (visible in select mode)
+        selectBar.setPadding(dp(10), dp(4), dp(6), dp(4))
+        selectBar.setBackgroundColor(Th.p.selection)
+        selectBar.addView(selectCount, W.lp(0, W.WRAP, 1f))
+        selectBar.addView(W.tool(act, act.getString(R.string.select_all)) { selectAll() })
+        selectBar.addView(W.tool(act, act.getString(R.string.copy)) { selectionFiles().let { if (it.isNotEmpty()) setClipboard(it, false) } })
+        selectBar.addView(W.tool(act, act.getString(R.string.cut)) { selectionFiles().let { if (it.isNotEmpty()) setClipboard(it, true) } })
+        selectBar.addView(W.tool(act, act.getString(R.string.delete)) { selectionFiles().let { if (it.isNotEmpty()) delete(it) } })
+        selectBar.addView(W.tool(act, "✕") { setSelectMode(false) })
+        selectBar.visibility = GONE
+        addView(selectBar, W.lp(W.MATCH, W.WRAP))
+
+        // ---- body: navigation pane + list
         val body = W.hbox(act, Gravity.TOP)
         navScroll.addView(nav)
         navScroll.setBackgroundColor(Th.p.surface2)
         nav.setPadding(dp(6), dp(6), dp(6), dp(6))
         body.addView(navScroll, W.lp(dp(200), W.MATCH))
-        val right = android.widget.FrameLayout(act)
+        val right = FrameLayout(act)
         list.adapter = adapter
         list.divider = null
         list.selector = android.graphics.drawable.ColorDrawable(0)
-        list.setOnItemClickListener { _, _, pos, _ -> openEntry(entries[pos]) }
-        list.setOnItemLongClickListener { _, v, pos, _ -> contextMenu(v, entries[pos]); true }
+        list.setOnItemClickListener { _, _, pos, _ -> onRowClick(pos) }
+        list.setOnItemLongClickListener { _, v, pos, _ -> onRowLongPress(v, pos); true }
+        list.setOnTouchListener { _, e ->
+            if (e.actionMasked == MotionEvent.ACTION_DOWN) {
+                DragFiles.downRawX = e.rawX
+                DragFiles.downRawY = e.rawY
+            }
+            false
+        }
+        list.setOnDragListener { v, e -> onListDrag(v, e) }
         right.addView(list)
         buildPermissionPanel()
         right.addView(permissionPanel)
@@ -96,8 +134,12 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         addView(status, W.lp(W.MATCH, W.WRAP))
 
         buildNav()
-        act.resumeListeners.add(onResume)
-        win.onClosed = { act.resumeListeners.remove(onResume) }
+        act.resumeListeners.add(onChange)
+        act.fileListeners.add(onChange)
+        win.onClosed = {
+            act.resumeListeners.remove(onChange)
+            act.fileListeners.remove(onChange)
+        }
         win.onArgument = { a -> (a as? File)?.let { navigate(it) } }
         navigate(start, addHistory = false)
     }
@@ -107,20 +149,20 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         navScroll.visibility = if (w < dp(560)) GONE else VISIBLE
     }
 
-    // ------------------------------------------------------------- navigation
+    // ================================================================ navigation pane
 
     private fun buildNav() {
         nav.removeAllViews()
-        navItem(R.drawable.ic_this_pc, act.getString(R.string.this_pc)) { navigate(null) }
+        navItem(R.drawable.ic_this_pc, act.getString(R.string.this_pc), null) { navigate(null) }
         navHeader(act.getString(R.string.quick_access))
-        quickFolders().forEach { (label, icon, f) -> navItem(icon, label) { navigate(f) } }
+        quickFolders().forEach { (label, icon, f) -> navItem(icon, label, f) { navigate(f) } }
         navHeader(act.getString(R.string.drives))
-        navItem(R.drawable.ic_storage, act.getString(R.string.internal_storage)) { navigate(Storage.internal()) }
+        navItem(R.drawable.ic_storage, act.getString(R.string.internal_storage), Storage.internal()) { navigate(Storage.internal()) }
         Storage.removable(act).forEachIndexed { i, f ->
-            navItem(R.drawable.ic_storage, act.getString(R.string.sd_card) + if (i > 0) " ${i + 1}" else "") { navigate(f) }
+            navItem(R.drawable.ic_storage, act.getString(R.string.sd_card) + if (i > 0) " ${i + 1}" else "", f) { navigate(f) }
         }
         navHeader(act.getString(R.string.cloud))
-        navItem(R.drawable.ic_cloud, act.getString(R.string.cloud_soon)) {
+        navItem(R.drawable.ic_cloud, act.getString(R.string.cloud_soon), null) {
             W.toast(act, act.getString(R.string.cloud_soon_msg))
         }
     }
@@ -129,7 +171,8 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         nav.addView(W.text(act, s, 11f, Th.p.textDim, bold = true).apply { setPadding(dp(8), dp(12), dp(8), dp(4)) })
     }
 
-    private fun navItem(icon: Int, label: String, click: () -> Unit) {
+    /** A navigation row; when [dropDir] is set, files can be dropped onto it. */
+    private fun navItem(icon: Int, label: String, dropDir: File?, click: () -> Unit) {
         val row = W.hbox(act).apply {
             setPadding(dp(8), dp(6), dp(8), dp(6))
             background = pressable(null, dpf(6))
@@ -138,6 +181,7 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         }
         row.addView(ImageView(act).apply { setImageResource(icon) }, W.lp(dp(18), dp(18)))
         row.addView(W.text(act, label, 13f).apply { setPadding(dp(10), 0, 0, 0) }, W.lp(0, W.WRAP, 1f))
+        if (dropDir != null) makeDropTarget(row, dropDir)
         nav.addView(row, W.lp(W.MATCH, W.WRAP))
     }
 
@@ -153,12 +197,14 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
     private fun navigate(dir: File?, addHistory: Boolean = true) {
         if (addHistory && dir?.absolutePath != cwd?.absolutePath) back.addLast(cwd)
         cwd = dir
+        selected.clear()
         refresh()
     }
 
     private fun goBack() {
         if (back.isEmpty()) return
         cwd = back.removeLast()
+        selected.clear()
         refresh()
     }
 
@@ -169,7 +215,7 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         else navigate(c.parentFile)
     }
 
-    // ------------------------------------------------------------- listing
+    // ================================================================ listing
 
     private fun buildPermissionPanel() {
         permissionPanel.gravity = Gravity.CENTER
@@ -191,16 +237,15 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         val hasAccess = Storage.hasAccess(act)
         permissionPanel.visibility = if (hasAccess) GONE else VISIBLE
         val dir = cwd
+        buildCrumbs()
         if (dir == null) {
             win.setTitle(act.getString(R.string.this_pc))
             entries = thisPcEntries()
             adapter.notifyDataSetChanged()
-            status.text = act.getString(R.string.n_items, entries.size)
-            buildCrumbs()
+            updateStatus()
             return
         }
         win.setTitle(displayName(dir))
-        buildCrumbs()
         val showHidden = Prefs.showHidden
         val sort = Prefs.sortMode
         Thread {
@@ -214,11 +259,18 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
             main.post {
                 if (cwd?.absolutePath != dir.absolutePath) return@post
                 entries = e
+                val existing = e.map { it.file.absolutePath }.toSet()
+                selected.retainAll(existing)
                 adapter.notifyDataSetChanged()
-                list.setSelection(0)
-                status.text = act.getString(R.string.n_items, e.size) + clipboardNote()
+                updateStatus()
             }
         }.start()
+    }
+
+    private fun updateStatus() {
+        val sel = if (selected.isNotEmpty()) "   •   " + act.getString(R.string.n_selected, selected.size) else ""
+        status.text = act.getString(R.string.n_items, entries.size) + sel + clipboardNote()
+        selectCount.text = act.getString(R.string.n_selected, selected.size)
     }
 
     private fun clipboardNote(): String =
@@ -249,7 +301,7 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
 
     private fun buildCrumbs() {
         crumbs.removeAllViews()
-        crumb(act.getString(R.string.this_pc)) { navigate(null) }
+        crumb(act.getString(R.string.this_pc), null) { navigate(null) }
         val dir = cwd ?: return
         val roots = listOf(Storage.internal()) + Storage.removable(act)
         val root = roots.firstOrNull { Files.isInside(dir, it) }
@@ -262,21 +314,78 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         }
         for (c in chain) {
             crumbs.addView(W.text(act, "›", 13f, Th.p.textDim).apply { setPadding(dp(2), 0, dp(2), 0) })
-            crumb(displayName(c).ifEmpty { "/" }) { navigate(c) }
+            crumb(displayName(c).ifEmpty { "/" }, c) { navigate(c) }
         }
         crumbScroll.post { crumbScroll.fullScroll(View.FOCUS_RIGHT) }
     }
 
-    private fun crumb(label: String, click: () -> Unit) {
-        crumbs.addView(W.text(act, label, 13f).apply {
+    private fun crumb(label: String, dropDir: File?, click: () -> Unit) {
+        val v = W.text(act, label, 13f).apply {
             setPadding(dp(6), dp(6), dp(6), dp(6))
             background = pressable(null, dpf(4))
             isClickable = true
             setOnClickListener { click() }
-        })
+        }
+        if (dropDir != null) makeDropTarget(v, dropDir)
+        crumbs.addView(v)
     }
 
-    // ------------------------------------------------------------- actions
+    // ================================================================ selection
+
+    private fun setSelectMode(on: Boolean) {
+        selectMode = on
+        if (!on) selected.clear()
+        selectBar.visibility = if (on) VISIBLE else GONE
+        adapter.notifyDataSetChanged()
+        updateStatus()
+    }
+
+    private fun toggleSelect(f: File) {
+        val p = f.absolutePath
+        if (!selected.remove(p)) selected.add(p)
+        adapter.notifyDataSetChanged()
+        updateStatus()
+    }
+
+    private fun selectAll() {
+        if (cwd == null) return
+        if (!selectMode) setSelectMode(true)
+        selected.clear()
+        entries.forEach { selected.add(it.file.absolutePath) }
+        adapter.notifyDataSetChanged()
+        updateStatus()
+    }
+
+    private fun selectionFiles(): List<File> = selected.map { File(it) }
+
+    /** Files that an action on [e] should apply to: the whole selection if [e] is part of it. */
+    private fun targetsFor(e: Entry): List<File> =
+        if (selected.contains(e.file.absolutePath) && selected.size > 1) selectionFiles() else listOf(e.file)
+
+    // ================================================================ clicks
+
+    private fun onRowClick(pos: Int) {
+        val e = entries.getOrNull(pos) ?: return
+        if (selectMode && e.label == null) {
+            toggleSelect(e.file)
+            return
+        }
+        openEntry(e)
+    }
+
+    /** Long press: start dragging; releasing without moving opens the context menu instead. */
+    private fun onRowLongPress(row: View, pos: Int) {
+        val e = entries.getOrNull(pos) ?: return
+        if (e.label != null || !Storage.hasAccess(act)) {
+            contextMenu(row, e)
+            return
+        }
+        val files = targetsFor(e)
+        pendingMenu = row to e
+        if (!DragFiles.start(row, files, this)) contextMenu(row, e)
+    }
+
+    private var pendingMenu: Pair<View, Entry>? = null
 
     private fun openEntry(e: Entry) {
         val f = e.file
@@ -296,32 +405,181 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         }
     }
 
+    // ================================================================ drag and drop
+
+    /** Where a drop at list position [pos] lands: the folder under the finger or the current folder. */
+    private fun dropDirAt(pos: Int): File? {
+        val e = entries.getOrNull(pos)
+        if (e != null && (e.file.isDirectory || e.label != null)) return e.file
+        return cwd
+    }
+
+    private fun onListDrag(v: View, e: DragEvent): Boolean {
+        val payload = DragFiles.payload(e) ?: return false
+        when (e.action) {
+            DragEvent.ACTION_DRAG_STARTED -> return true
+            DragEvent.ACTION_DRAG_ENTERED -> {
+                DragFiles.track(v, e)
+                listHover = true
+            }
+            DragEvent.ACTION_DRAG_LOCATION -> {
+                DragFiles.track(v, e)
+                val pos = list.pointToPosition(e.x.toInt(), e.y.toInt())
+                val dir = entries.getOrNull(pos)?.takeIf { it.file.isDirectory || it.label != null }
+                val newHover = if (dir != null && payload.files.none { it.absolutePath == dir.file.absolutePath }) pos else -1
+                if (newHover != hoverPos) {
+                    hoverPos = newHover
+                    adapter.notifyDataSetChanged()
+                }
+                autoScroll(e.y)
+            }
+            DragEvent.ACTION_DRAG_EXITED -> clearHover()
+            DragEvent.ACTION_DROP -> {
+                val pos = list.pointToPosition(e.x.toInt(), e.y.toInt())
+                clearHover()
+                // released on the same spot: it was a long press, show the menu
+                if (!DragFiles.moved && payload.source === this) {
+                    pendingMenu?.let { (row, entry) -> contextMenu(row, entry) }
+                    pendingMenu = null
+                    return true
+                }
+                val target = dropDirAt(pos) ?: return false
+                val anchor = list.getChildAt(pos - list.firstVisiblePosition) ?: list
+                askDrop(anchor, payload.files, target)
+                return true
+            }
+            DragEvent.ACTION_DRAG_ENDED -> {
+                clearHover()
+                pendingMenu = null
+            }
+        }
+        return true
+    }
+
+    private fun autoScroll(y: Float) {
+        val edge = dp(40)
+        when {
+            y < edge -> list.smoothScrollBy(-dp(24), 50)
+            y > list.height - edge -> list.smoothScrollBy(dp(24), 50)
+        }
+    }
+
+    private fun clearHover() {
+        if (hoverPos != -1 || listHover) {
+            hoverPos = -1
+            listHover = false
+            adapter.notifyDataSetChanged()
+        }
+    }
+
+    /** Navigation rows and breadcrumbs accept dropped files into their folder. */
+    private fun makeDropTarget(v: View, dir: File) {
+        v.setOnDragListener { view, e ->
+            val payload = DragFiles.payload(e) ?: return@setOnDragListener false
+            when (e.action) {
+                DragEvent.ACTION_DRAG_STARTED -> true
+                DragEvent.ACTION_DRAG_ENTERED -> {
+                    DragFiles.track(view, e)
+                    view.background = pressable(rounded(Th.p.selection, dpf(6)), dpf(6))
+                    true
+                }
+                DragEvent.ACTION_DRAG_LOCATION -> {
+                    DragFiles.track(view, e); true
+                }
+                DragEvent.ACTION_DRAG_EXITED, DragEvent.ACTION_DRAG_ENDED -> {
+                    view.background = pressable(null, dpf(6))
+                    true
+                }
+                DragEvent.ACTION_DROP -> {
+                    view.background = pressable(null, dpf(6))
+                    askDrop(view, payload.files, dir)
+                    true
+                }
+                else -> true
+            }
+        }
+    }
+
+    /** "Move here / Copy here / Cancel", like a right-button drag in Windows. */
+    private fun askDrop(anchor: View, files: List<File>, dir: File) {
+        val real = files.filter { f ->
+            f.parentFile?.absolutePath != dir.absolutePath && f.absolutePath != dir.absolutePath &&
+                !(f.isDirectory && Files.isInside(dir, f))
+        }
+        if (real.isEmpty()) {
+            if (files.any { it.isDirectory && Files.isInside(dir, it) && it.absolutePath != dir.absolutePath }) {
+                W.toast(act, act.getString(R.string.cant_into_itself))
+            }
+            return
+        }
+        val sameVolume = sameRoot(real.first(), dir)
+        val pm = PopupMenu(act, anchor)
+        val title = act.getString(R.string.n_to_folder, real.size, displayName(dir))
+        pm.menu.add(0, 0, 0, title).isEnabled = false
+        // Windows default: move on the same drive, copy to another drive — offered first
+        if (sameVolume) {
+            pm.menu.add(0, 1, 1, R.string.move_here)
+            pm.menu.add(0, 2, 2, R.string.copy_here)
+        } else {
+            pm.menu.add(0, 2, 1, R.string.copy_here)
+            pm.menu.add(0, 1, 2, R.string.move_here)
+        }
+        pm.menu.add(0, 3, 3, R.string.cancel)
+        pm.setOnMenuItemClickListener {
+            when (it.itemId) {
+                1 -> transfer(real, dir, move = true)
+                2 -> transfer(real, dir, move = false)
+            }
+            true
+        }
+        pm.show()
+    }
+
+    private fun sameRoot(a: File, b: File): Boolean {
+        val roots = listOf(Storage.internal()) + Storage.removable(act)
+        val ra = roots.firstOrNull { Files.isInside(a, it) }
+        val rb = roots.firstOrNull { Files.isInside(b, it) }
+        return ra != null && ra.absolutePath == rb?.absolutePath
+    }
+
+    // ================================================================ file operations
+
     private fun contextMenu(anchor: View, e: Entry) {
         val f = e.file
+        val many = e.label == null && selected.contains(f.absolutePath) && selected.size > 1
         val pm = PopupMenu(act, anchor)
         val m = pm.menu
-        m.add(0, 1, 0, R.string.open)
+        if (many) {
+            m.add(0, 0, 0, act.getString(R.string.n_selected, selected.size)).isEnabled = false
+        } else {
+            m.add(0, 1, 0, R.string.open)
+        }
         if (e.label == null) {
-            if (f.isFile) m.add(0, 2, 1, R.string.open_with)
+            if (f.isFile && !many) m.add(0, 2, 1, R.string.open_with)
             m.add(0, 3, 2, R.string.copy)
             m.add(0, 4, 3, R.string.cut)
-            if (f.isDirectory && FileClipboard.files.isNotEmpty()) m.add(0, 5, 4, R.string.paste_into)
-            m.add(0, 6, 5, R.string.rename)
+            if (f.isDirectory && !many && FileClipboard.files.isNotEmpty()) m.add(0, 5, 4, R.string.paste_into)
+            if (!many) m.add(0, 6, 5, R.string.rename)
             m.add(0, 7, 6, R.string.delete)
-            if (f.isFile) m.add(0, 8, 7, R.string.share)
+            if (f.isFile && !many) m.add(0, 8, 7, R.string.share)
+            if (!selectMode) m.add(0, 10, 8, R.string.select)
         }
-        m.add(0, 9, 8, R.string.properties)
+        if (!many) m.add(0, 9, 9, R.string.properties)
         pm.setOnMenuItemClickListener {
             when (it.itemId) {
                 1 -> openEntry(e)
                 2 -> Files.openExternal(act, f, chooser = true)
-                3 -> setClipboard(listOf(f), false)
-                4 -> setClipboard(listOf(f), true)
+                3 -> setClipboard(targetsFor(e), false)
+                4 -> setClipboard(targetsFor(e), true)
                 5 -> pasteInto(f)
                 6 -> rename(f)
-                7 -> delete(f)
+                7 -> delete(targetsFor(e))
                 8 -> Files.share(act, f)
                 9 -> properties(f)
+                10 -> {
+                    setSelectMode(true)
+                    toggleSelect(f)
+                }
             }
             true
         }
@@ -332,7 +590,8 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         FileClipboard.files = files
         FileClipboard.cut = cut
         W.toast(act, act.getString(if (cut) R.string.n_to_move else R.string.n_to_copy, files.size))
-        status.text = act.getString(R.string.n_items, entries.size) + clipboardNote()
+        if (selectMode) setSelectMode(false)
+        act.filesChanged()
     }
 
     private fun paste() {
@@ -351,6 +610,11 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
             return
         }
         val move = FileClipboard.cut
+        if (move) FileClipboard.files = emptyList()
+        transfer(files, dir, move)
+    }
+
+    private fun transfer(files: List<File>, dir: File, move: Boolean) {
         status.text = act.getString(if (move) R.string.moving else R.string.copying, files.size)
         Thread {
             var errors = 0
@@ -362,10 +626,10 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
                 }
             }
             main.post {
-                if (move) FileClipboard.files = emptyList()
                 if (errors > 0) W.toast(act, act.getString(R.string.n_failed, errors))
                 else W.toast(act, act.getString(R.string.done))
-                refresh()
+                if (selectMode) setSelectMode(false)
+                act.filesChanged()
             }
         }.start()
     }
@@ -378,25 +642,28 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         val def = Files.unique(dir, act.getString(R.string.new_folder_name)).name
         W.prompt(act, act.getString(R.string.new_folder), def, act.getString(R.string.create), act.getString(R.string.cancel)) { name ->
             val f = File(dir, name)
-            if (f.exists() || !f.mkdirs()) W.toast(act, act.getString(R.string.failed)) else refresh()
+            if (f.exists() || !f.mkdirs()) W.toast(act, act.getString(R.string.failed)) else act.filesChanged()
         }
     }
 
     private fun rename(f: File) {
         W.prompt(act, act.getString(R.string.rename), f.name, act.getString(R.string.ok), act.getString(R.string.cancel), selectBase = f.isFile) { name ->
             val t = File(f.parentFile, name)
-            if (t.exists() || !f.renameTo(t)) W.toast(act, act.getString(R.string.failed)) else refresh()
+            if (t.exists() || !f.renameTo(t)) W.toast(act, act.getString(R.string.failed)) else act.filesChanged()
         }
     }
 
-    private fun delete(f: File) {
-        W.confirm(act, act.getString(R.string.delete), act.getString(R.string.delete_confirm, f.name),
-            act.getString(R.string.delete), act.getString(R.string.cancel)) {
+    private fun delete(files: List<File>) {
+        val msg = if (files.size == 1) act.getString(R.string.delete_confirm, files[0].name)
+        else act.getString(R.string.delete_many_confirm, files.size)
+        W.confirm(act, act.getString(R.string.delete), msg, act.getString(R.string.delete), act.getString(R.string.cancel)) {
             Thread {
-                val ok = f.deleteRecursively()
+                var errors = 0
+                files.forEach { if (!it.deleteRecursively()) errors++ }
                 main.post {
-                    if (!ok) W.toast(act, act.getString(R.string.failed))
-                    refresh()
+                    if (errors > 0) W.toast(act, act.getString(R.string.n_failed, errors))
+                    if (selectMode) setSelectMode(false)
+                    act.filesChanged()
                 }
             }.start()
         }
@@ -430,10 +697,18 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
             isCheckable = true
             isChecked = Prefs.showHidden
         }
+        pm.menu.add(0, 5, 4, R.string.select_all)
+        pm.menu.add(0, 6, 5, R.string.new_window)
         pm.setOnMenuItemClickListener {
             when (it.itemId) {
                 1, 2, 3 -> Prefs.sortMode = it.itemId - 1
                 4 -> Prefs.showHidden = !Prefs.showHidden
+                5 -> {
+                    selectAll(); return@setOnMenuItemClickListener true
+                }
+                6 -> {
+                    act.windows.open(Builtin.EXPLORER, cwd); return@setOnMenuItemClickListener true
+                }
             }
             refresh()
             true
@@ -441,7 +716,7 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
         pm.show()
     }
 
-    // ------------------------------------------------------------- adapter
+    // ================================================================ adapter
 
     private inner class FileAdapter : BaseAdapter() {
         override fun getCount() = entries.size
@@ -450,8 +725,8 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
 
         override fun getView(p: Int, convert: View?, parent: ViewGroup?): View {
             val row = (convert as? LinearLayout) ?: W.hbox(act).apply {
-                setPadding(dp(12), dp(7), dp(12), dp(7))
-                background = pressable(null, dpf(4))
+                setPadding(dp(10), dp(7), dp(12), dp(7))
+                addView(W.text(act, "", 16f, Th.p.accent).apply { gravity = Gravity.CENTER }, W.lp(dp(26), W.WRAP))
                 addView(ImageView(act), W.lp(dp(24), dp(24)))
                 val texts = W.vbox(act).apply { setPadding(dp(12), 0, dp(8), 0) }
                 texts.addView(W.text(act, "", 13.5f))
@@ -461,11 +736,15 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
             }
             val e = entries[p]
             val f = e.file
-            (row.getChildAt(0) as ImageView).setImageResource(e.icon ?: Files.iconFor(f))
-            val texts = row.getChildAt(1) as LinearLayout
+            val isSel = selected.contains(f.absolutePath)
+            val check = row.getChildAt(0) as TextView
+            check.visibility = if (selectMode && e.label == null) VISIBLE else GONE
+            check.text = if (isSel) "☑" else "☐"
+            (row.getChildAt(1) as ImageView).setImageResource(e.icon ?: Files.iconFor(f))
+            val texts = row.getChildAt(2) as LinearLayout
             (texts.getChildAt(0) as TextView).text = e.label ?: f.name
             val sub = texts.getChildAt(1) as TextView
-            val right = row.getChildAt(2) as TextView
+            val right = row.getChildAt(3) as TextView
             if (e.label != null) {
                 sub.text = e.sub ?: ""
                 sub.visibility = if (e.sub == null) GONE else VISIBLE
@@ -476,6 +755,12 @@ class ExplorerView(private val act: DesktopActivity, private val win: FxWindow, 
                 sub.visibility = VISIBLE
                 right.text = if (f.isDirectory) "" else Files.size(act, f.length())
             }
+            val bg = when {
+                p == hoverPos -> rounded(Th.p.selection, dpf(4), dp(2), Th.p.accent)
+                isSel -> rounded(Th.p.selection, dpf(4))
+                else -> null
+            }
+            row.background = pressable(bg, dpf(4))
             row.alpha = if (FileClipboard.cut && FileClipboard.files.any { it.absolutePath == f.absolutePath }) 0.5f else 1f
             return row
         }

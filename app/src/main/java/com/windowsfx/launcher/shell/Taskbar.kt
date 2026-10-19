@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.text.format.DateFormat
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -27,6 +28,7 @@ import com.windowsfx.launcher.core.dp
 import com.windowsfx.launcher.core.dpf
 import com.windowsfx.launcher.core.pressable
 import com.windowsfx.launcher.core.rounded
+import com.windowsfx.launcher.files.DragFiles
 import com.windowsfx.launcher.wm.FxWindow
 import java.util.Date
 
@@ -150,7 +152,8 @@ class Taskbar(private val act: DesktopActivity) : FrameLayout(act) {
             if (b != null) {
                 val wins = windows.filter { it.app == b }
                 shownWindows.addAll(wins)
-                center.addView(item(e.icon, e.label, null, state(wins), longClick = { v -> pinMenu(v, key, wins) }) {
+                center.addView(item(e.icon, e.label, null, state(wins), longClick = { v -> pinMenu(v, key, wins) },
+                    dragHover = if (wins.isEmpty()) null else ({ act.windows.restore(wins.last()) })) {
                     clickBuiltin(b, wins)
                 })
             } else {
@@ -163,7 +166,8 @@ class Taskbar(private val act: DesktopActivity) : FrameLayout(act) {
         val groups = windows.filter { it !in shownWindows }.groupBy { it.app }
         for ((b, wins) in groups) {
             center.addView(item(act.getDrawable(b.icon), act.getString(b.title), null, state(wins),
-                longClick = { v -> pinMenu(v, "b:" + b.key, wins) }) { clickBuiltin(b, wins) })
+                longClick = { v -> pinMenu(v, "b:" + b.key, wins) },
+                dragHover = { act.windows.restore(wins.last()) }) { clickBuiltin(b, wins) })
         }
     }
 
@@ -206,7 +210,7 @@ class Taskbar(private val act: DesktopActivity) : FrameLayout(act) {
 
     private fun item(
         icon: android.graphics.drawable.Drawable?, label: String, tint: Int?, state: Int = 0,
-        longClick: ((View) -> Unit)? = null, click: () -> Unit,
+        longClick: ((View) -> Unit)? = null, dragHover: (() -> Unit)? = null, click: () -> Unit,
     ): View = FrameLayout(act).apply {
         val img = ImageView(act).apply {
             setImageDrawable(icon)
@@ -226,6 +230,12 @@ class Taskbar(private val act: DesktopActivity) : FrameLayout(act) {
         setOnClickListener { click() }
         if (longClick != null) setOnLongClickListener { longClick(it); true }
         else setOnLongClickListener { W.toast(act, label); true }
+        // hovering a dragged file over a running app brings its window up, like Windows
+        if (dragHover != null) setOnDragListener { _, e ->
+            if (DragFiles.payload(e) == null) return@setOnDragListener false
+            if (e.action == DragEvent.ACTION_DRAG_ENTERED) dragHover()
+            e.action != DragEvent.ACTION_DROP
+        }
         layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { setMargins(dp(2), 0, dp(2), 0) }
     }
 }

@@ -48,6 +48,35 @@ class FxWindow(val act: DesktopActivity, private val host: WindowHost, val app: 
     /** Called when the same app is asked to open something new while this window exists. */
     var onArgument: ((Any) -> Unit)? = null
 
+    /** Set by apps that can open files dropped onto their window (Notepad, PDF, Paint). */
+    var onFileDrop: ((List<java.io.File>) -> Unit)? = null
+        set(v) {
+            field = v
+            if (v != null) acceptFileDrops(this)
+        }
+
+    /** Lets [target] (the window, or a view inside it that would grab drags itself) receive dropped files. */
+    fun acceptFileDrops(target: View) {
+        target.setOnDragListener { _, e ->
+            val payload = com.windowsfx.launcher.files.DragFiles.payload(e) ?: return@setOnDragListener false
+            val cb = onFileDrop ?: return@setOnDragListener false
+            when (e.action) {
+                android.view.DragEvent.ACTION_DRAG_ENTERED -> {
+                    com.windowsfx.launcher.files.DragFiles.track(target, e)
+                    foreground = rounded(0, if (maximized) 0f else radius, dp(3), Th.p.accent)
+                    host.focus(this)
+                }
+                android.view.DragEvent.ACTION_DRAG_LOCATION -> com.windowsfx.launcher.files.DragFiles.track(target, e)
+                android.view.DragEvent.ACTION_DRAG_EXITED, android.view.DragEvent.ACTION_DRAG_ENDED -> foreground = null
+                android.view.DragEvent.ACTION_DROP -> {
+                    foreground = null
+                    cb(payload.files)
+                }
+            }
+            true
+        }
+    }
+
     private val radius = dpf(10)
 
     init {

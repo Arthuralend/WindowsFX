@@ -44,6 +44,13 @@ class DesktopActivity : Activity() {
 
     /** Views that want to know when the user comes back (e.g. after granting storage access). */
     val resumeListeners = mutableListOf<() -> Unit>()
+
+    /** Views that show files and must refresh after a copy / move / delete anywhere. */
+    val fileListeners = mutableListOf<() -> Unit>()
+
+    fun filesChanged() {
+        fileListeners.toList().forEach { it() }
+    }
     private val pickCallbacks = mutableMapOf<Int, (Uri) -> Unit>()
     private var nextRequest = 1000
 
@@ -89,6 +96,7 @@ class DesktopActivity : Activity() {
         windows.onChanged = { taskbar.refresh() }
         setContentView(root)
 
+        AndroidApps.allowHiddenApi()
         AndroidApps.load(this) {
             taskbar.refresh()
             desktop.refresh()

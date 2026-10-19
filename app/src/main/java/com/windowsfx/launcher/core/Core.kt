@@ -49,6 +49,10 @@ object Prefs {
         get() = sp.getBoolean("freeform", true)
         set(v) = sp.edit().putBoolean("freeform", v).apply()
 
+    var freeformHintShown: Boolean
+        get() = sp.getBoolean("ff_hint", false)
+        set(v) = sp.edit().putBoolean("ff_hint", v).apply()
+
     var hideStatusBar: Boolean
         get() = sp.getBoolean("hide_sb", true)
         set(v) = sp.edit().putBoolean("hide_sb", v).apply()

@@ -102,6 +102,8 @@ class NotepadView(private val act: DesktopActivity, private val win: FxWindow, s
             } else true
         }
         win.onArgument = { a -> (a as? File)?.let { f -> confirmDiscard { load(f) } } }
+        win.onFileDrop = { files -> files.firstOrNull { it.isFile }?.let { f -> confirmDiscard { load(f) } } }
+        win.acceptFileDrops(editor)
         if (start != null) load(start) else newDoc()
     }
 
