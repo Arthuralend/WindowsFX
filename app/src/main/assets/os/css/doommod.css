@@ -1,0 +1,155 @@
+/* ===== DOOM MOD: вторжение демонов на рабочий стол ===== */
+#doommod {
+  position: fixed; inset: 0; z-index: 55000;
+  cursor: none; overflow: hidden;
+  user-select: none; -webkit-user-select: none;
+  animation: dm-in .4s ease-out;
+}
+#doommod.dm-cursor { cursor: default; }
+#doommod.dm-out { opacity: 0; transition: opacity .6s; pointer-events: none; }
+@keyframes dm-in { from { opacity: 0; } }
+
+.dm-canvas {
+  position: absolute; left: 0; top: 0;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  pointer-events: none;
+}
+.dm-decals {
+  position: absolute; left: 0; top: 0; pointer-events: none;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  transition: opacity .6s;
+}
+.dm-decals.dm-out { opacity: 0; }
+
+/* Красное свечение и затемнение «мигающего света» */
+.dm-glow {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(160, 0, 0, .38) 78%, rgba(90, 0, 0, .8) 100%),
+    rgba(120, 0, 0, .05);
+  box-shadow: inset 0 0 14vmin rgba(255, 30, 0, .55);
+}
+.dm-dark { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+
+/* Подсказки */
+.dm-hint {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 8px 16px; border-radius: 8px;
+  background: rgba(0, 0, 0, .72); color: #f3d7c8;
+  font: 500 .85rem var(--font); text-align: center;
+  border: 1px solid rgba(255, 60, 20, .45);
+  box-shadow: 0 0 24px rgba(255, 40, 0, .35);
+  pointer-events: none; animation: dm-in .4s;
+}
+.dm-hint b { color: #ffcf6a; }
+.dm-escape {
+  position: absolute; left: 50%; bottom: 45%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: #fff; font: 600 1rem var(--font); text-shadow: 0 2px 8px #000; pointer-events: none;
+}
+.dm-escape i { display: block; width: 220px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .2); overflow: hidden; }
+.dm-escape b { display: block; width: 0; height: 100%; background: #ff4a1c; }
+
+/* ===== Повреждения окон, значков и панели задач (только визуально) ===== */
+.dm-damaged::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: var(--dm-dmg); background-size: 100% 100%, auto;
+  border-radius: inherit; z-index: 30;
+}
+.dicon.dm-l1 { rotate: calc(var(--dm-rot) * .4); }
+.dicon.dm-l2 { rotate: var(--dm-rot); }
+.dicon.dm-l2 .icon { filter: sepia(.8) saturate(2.4) hue-rotate(-25deg) brightness(.75) drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); }
+.dicon.dm-l3 { rotate: calc(var(--dm-rot) * 2.4); translate: 0 var(--dm-drop, 14px); opacity: .8; }
+.dicon.dm-l3 .icon { filter: grayscale(1) brightness(.45) contrast(1.4) drop-shadow(0 0 6px rgba(255, 90, 0, .8)); }
+.dicon.dm-l3 .dlabel { text-decoration: line-through; color: #ffb4a0; }
+
+.win.dm-l1 { rotate: calc(var(--dm-rot) * .06); }
+.win.dm-l2 { rotate: calc(var(--dm-rot) * .14); animation: dm-glitch 3.2s steps(1) infinite; }
+.win.dm-l3 { rotate: calc(var(--dm-rot) * .3); animation: dm-glitch 1.6s steps(1) infinite; }
+.win.dm-l3 .win-body { filter: grayscale(.75) brightness(.7) contrast(1.25); }
+.win.dm-l3 .win-title-text::after { content: ' (Не отвечает)'; color: #ff8a70; }
+#taskbar.dm-l1 { rotate: -.3deg; }
+#taskbar.dm-l2 { rotate: .6deg; animation: dm-glitch 2.6s steps(1) infinite; }
+#taskbar.dm-l3 { rotate: -1deg; translate: 0 6px; filter: saturate(.4) brightness(.8); }
+
+.dm-jolt { animation: dm-jolt .35s ease-out !important; }
+@keyframes dm-jolt {
+  0% { translate: 0 0; } 15% { translate: -6px 3px; } 30% { translate: 5px -4px; }
+  50% { translate: -3px 2px; } 75% { translate: 2px -1px; } 100% { translate: 0 0; }
+}
+@keyframes dm-glitch {
+  0%, 100% { translate: 0 0; filter: none; }
+  6% { translate: -4px 1px; filter: hue-rotate(90deg) saturate(2); }
+  8% { translate: 3px -2px; filter: none; }
+  40% { translate: 0 0; }
+  42% { translate: 2px 0; filter: invert(.15) contrast(1.4); }
+  44% { translate: 0 0; filter: none; }
+  71% { translate: -2px 2px; filter: hue-rotate(-60deg); }
+  72% { translate: 0 0; filter: none; }
+}
+.dm-glitchy { animation: dm-glitch .5s steps(1) infinite !important; }
+.dm-repair { animation: dm-repair .7s ease-out; }
+@keyframes dm-repair {
+  0% { filter: brightness(2.6) saturate(0) drop-shadow(0 0 18px #9fe7ff); }
+  100% { filter: none; }
+}
+
+/* ===== Победа ===== */
+.dm-win {
+  position: absolute; left: 50%; top: 52%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  padding: 20px 28px; border-radius: 14px;
+  background: rgba(10, 6, 4, .78);
+  border: 1px solid rgba(255, 200, 90, .4);
+  box-shadow: 0 0 60px rgba(255, 180, 60, .35), 0 20px 60px rgba(0, 0, 0, .6);
+  color: #fff; font-family: var(--font);
+  animation: dm-win-in .6s cubic-bezier(.2, 1.4, .4, 1);
+}
+@keyframes dm-win-in { from { opacity: 0; transform: translate(-50%, 30px) scale(.9); } }
+.dm-win-stats { display: flex; gap: 28px; }
+.dm-win-stats div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.dm-win-stats span { font-size: .78rem; color: #e8c9a0; text-transform: uppercase; letter-spacing: .08em; }
+.dm-win-stats b { font-size: 1.8rem; color: #ffd34a; font-family: var(--font-display, var(--font)); }
+
+/* ===== Синий экран смерти ===== */
+.dm-bsod {
+  position: absolute; inset: 0; z-index: 5;
+  background: #0078d7; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Segoe UI', 'Segoe UI Variable', system-ui, sans-serif;
+  animation: dm-bsod-in .9s steps(6);
+  cursor: none;
+}
+@keyframes dm-bsod-in {
+  0% { opacity: 0; filter: hue-rotate(160deg) contrast(3); transform: scaleY(.02); }
+  30% { opacity: 1; transform: scaleY(1.05) skewX(8deg); }
+  50% { filter: hue-rotate(-40deg); transform: translateX(-12px); }
+  70% { filter: none; transform: translateX(6px); }
+  100% { transform: none; }
+}
+.dm-bsod-in { width: min(820px, calc(100% - 64px)); }
+.dm-sad { font-size: clamp(90px, 14vw, 160px); line-height: 1; font-weight: 300; margin-bottom: 24px; }
+.dm-bsod h1 {
+  font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight: 600; margin: 0 0 18px; letter-spacing: .01em;
+  animation: dm-bsod-glitch 2.4s steps(1) infinite;
+}
+@keyframes dm-bsod-glitch {
+  0%, 100% { text-shadow: none; transform: none; }
+  3% { text-shadow: -3px 0 #ff2a2a, 3px 0 #00f0ff; transform: translateX(2px); }
+  5% { text-shadow: none; transform: none; }
+  61% { text-shadow: 2px 0 #ff2a2a, -2px 0 #00f0ff; }
+  62% { text-shadow: none; }
+}
+.dm-bsod p { font-size: clamp(1rem, 1.9vw, 1.35rem); font-weight: 300; line-height: 1.45; margin: 0 0 14px; max-width: 760px; }
+.dm-pct { margin-top: 26px !important; }
+.dm-bsod-row { display: flex; gap: 22px; align-items: flex-start; margin-top: 34px; }
+.dm-qr { width: 116px; height: 116px; image-rendering: pixelated; flex-shrink: 0; }
+.dm-bsod-small p { font-size: .92rem; margin-bottom: 10px; }
+.dm-bsod.dm-reboot { background: #000; transition: background .3s; }
+.dm-bsod.dm-reboot > * { opacity: 0; transition: opacity .2s; }
+
+@media (max-width: 600px) {
+  .dm-bsod-row { flex-direction: column; }
+  .dm-win-stats { gap: 16px; }
+}

@@ -1,0 +1,105 @@
+/* ===== Окна ===== */
+#windows { position: absolute; inset: 0; pointer-events: none; }
+.win {
+  position: absolute;
+  display: flex; flex-direction: column;
+  border-radius: 12px;
+  background: var(--win-bg);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, .3), 0 0 0 1px var(--line-2);
+  pointer-events: auto;
+  transition: opacity .18s, transform .22s var(--ease-out), box-shadow .2s;
+  min-width: 0;
+}
+.win.active { box-shadow: var(--shadow-lg), 0 0 0 1px var(--line-2); }
+html[data-theme="dark"] .win.active { box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255, 255, 255, .15); }
+.win.opening { opacity: 0; transform: scale(.94) translateY(10px); }
+.win.closing { opacity: 0; transform: scale(.94); pointer-events: none; }
+.win.minimizing { opacity: 0; transform: translate(var(--min-x, 0), var(--min-y, 200px)) scale(.15); pointer-events: none; transition: opacity .2s ease-in, transform .25s var(--ease); }
+.win.min { display: none; }
+.win.other-desk { display: none; }
+.win.max { border-radius: 0; box-shadow: none; }
+.win.anim { transition: left .25s var(--ease-out), top .25s var(--ease-out), width .25s var(--ease-out), height .25s var(--ease-out), border-radius .25s, opacity .18s; }
+.win.snapped { border-radius: 10px; }
+
+.win-titlebar {
+  height: 40px; flex-shrink: 0;
+  display: flex; align-items: center;
+  padding-left: 12px;
+  border-radius: 12px 12px 0 0;
+  position: relative;
+}
+.win.max .win-titlebar { border-radius: 0; }
+html.accent-titlebars .win.active .win-titlebar { background: var(--accent); color: var(--accent-fg); }
+.win-title { display: flex; align-items: center; gap: 10px; min-width: 0; flex-shrink: 1; overflow: hidden; }
+.win-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 4px; }
+.win-icon:hover { background: var(--hover); }
+.win-title-text { font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win:not(.active) .win-title-text, .win:not(.active) .win-icon { opacity: .6; }
+.win-tb-extra { flex: 1; min-width: 0; display: flex; align-items: center; height: 100%; }
+.win-controls { display: flex; height: 100%; flex-shrink: 0; }
+.wc {
+  width: 46px; height: 100%;
+  border: 0; background: transparent;
+  display: grid; place-items: center;
+  color: inherit;
+  transition: background .1s;
+}
+.wc:hover { background: var(--hover); }
+.wc:active { background: var(--press); }
+.wc-close:hover { background: #c42b1c; color: #fff; }
+.wc-close:active { background: #b02a1d; color: #fff; }
+.win-controls .wc:last-child { border-top-right-radius: 12px; }
+.win.max .win-controls .wc:last-child { border-radius: 0; }
+.win:not(.active) .wc { opacity: .6; }
+
+.win-body {
+  flex: 1; min-height: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 12px 12px;
+  display: flex; flex-direction: column;
+}
+.win.max .win-body { border-radius: 0; }
+
+/* Ручки изменения размера */
+.rz { position: absolute; z-index: 5; }
+.rz-n { top: -4px; left: 8px; right: 8px; height: 8px; cursor: ns-resize; }
+.rz-s { bottom: -4px; left: 8px; right: 8px; height: 8px; cursor: ns-resize; }
+.rz-e { right: -4px; top: 8px; bottom: 8px; width: 8px; cursor: ew-resize; }
+.rz-w { left: -4px; top: 8px; bottom: 8px; width: 8px; cursor: ew-resize; }
+.rz-ne { top: -5px; right: -5px; width: 14px; height: 14px; cursor: nesw-resize; }
+.rz-nw { top: -5px; left: -5px; width: 14px; height: 14px; cursor: nwse-resize; }
+.rz-se { bottom: -5px; right: -5px; width: 14px; height: 14px; cursor: nwse-resize; }
+.rz-sw { bottom: -5px; left: -5px; width: 14px; height: 14px; cursor: nesw-resize; }
+.win.max .rz { display: none; }
+
+body.wm-busy, body.wm-busy * { user-select: none !important; }
+body.wm-busy iframe, body.wm-busy video { pointer-events: none !important; }
+
+/* Общие части приложений */
+.app-toolbar { display: flex; align-items: center; gap: 4px; padding: 4px 10px 8px; flex-shrink: 0; flex-wrap: wrap; }
+.app-toolbar .sep { width: 1px; height: 22px; background: var(--line-2); margin: 0 6px; }
+.tb-text-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: var(--r-sm); border: 0; background: transparent; font-size: .9rem; white-space: nowrap; }
+.tb-text-btn:hover { background: var(--hover); }
+.tb-text-btn:active { background: var(--press); }
+.tb-text-btn:disabled { opacity: .4; pointer-events: none; }
+.tb-text-btn.active { background: rgba(var(--accent-rgb), .18); }
+.statusbar { height: 28px; flex-shrink: 0; display: flex; align-items: center; gap: 18px; padding: 0 14px; font-size: .8rem; color: var(--fg-2); border-top: 1px solid var(--line); background: var(--surface); }
+.statusbar .spacer { flex: 1; }
+.menubar { display: flex; align-items: center; gap: 2px; padding: 0 6px; height: 34px; flex-shrink: 0; }
+.menubar button { height: 28px; padding: 0 10px; border: 0; background: transparent; border-radius: 5px; font-size: .9rem; }
+.menubar button:hover, .menubar button.open { background: var(--hover); }
+.app-surface { background: var(--surface); }
+.tabs-row { display: flex; gap: 2px; padding: 0 8px; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 8px; background: var(--input); border: 1px solid var(--input-border); }
+.seg button { height: 28px; padding: 0 12px; border: 0; background: transparent; border-radius: 6px; font-size: .88rem; }
+.seg button:hover { background: var(--hover); }
+.seg button.on { background: var(--surface-2); box-shadow: var(--shadow-sm); }
+html[data-theme="dark"] .seg button.on { background: var(--surface-4); }
+.pivot { display: flex; gap: 4px; }
+.pivot button { position: relative; height: 34px; padding: 0 14px; border: 0; background: transparent; border-radius: 6px; font-size: .92rem; color: var(--fg-2); }
+.pivot button:hover { background: var(--hover); color: var(--fg); }
+.pivot button.on { color: var(--fg); font-weight: 600; }
+.pivot button.on::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 16px; height: 3px; margin-left: -8px; border-radius: 2px; background: var(--accent); }

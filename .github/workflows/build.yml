@@ -24,13 +24,29 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
+      - name: Download Craft engines (Lexicon, Tabs, Prism)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          C=app/src/main/assets/craft
+          mkdir -p $C/lexicon $C/tabs $C/prism tmpc
+          curl -sSL -o tmpc/grid.zip https://github.com/storytold/gridcraft/releases/download/v0.5.0/gridcraft-web-0.5.0.zip
+          curl -sSL -o tmpc/photo.zip https://github.com/storytold/photocraft/releases/download/v0.1.1-rc.4/photocraft-web-0.1.1-rc.4.zip
+          gh release download craft-assets -R ${{ github.repository }} -p wordcraft-web.zip -D tmpc
+          unzip -q tmpc/grid.zip -d tmpc/grid && cp -R tmpc/grid/*/. $C/tabs/
+          unzip -q tmpc/photo.zip -d tmpc/photo && cp -R tmpc/photo/*/. $C/prism/
+          unzip -q tmpc/wordcraft-web.zip -d tmpc/word && cp -R tmpc/word/*/. $C/lexicon/
+          ls -la $C/*/index.html
+          du -sh $C/*
+
       - name: Build
         run: gradle :app:assembleRelease --no-daemon --stacktrace
 
       - name: Rename APK
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/release/app-release.apk "out/WindowsFX-0.1.${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "out/WindowsFX-0.3.${{ github.run_number }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -41,7 +57,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: WindowsFX 0.1.${{ github.run_number }}
+          name: WindowsFX 0.3.${{ github.run_number }}
           body: "Автоматическая сборка. Скачайте APK ниже и установите на устройство."
           files: out/*.apk
           make_latest: true

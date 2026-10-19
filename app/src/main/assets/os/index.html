@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>WindowsFX</title>
+  
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/shell.css">
+  <link rel="stylesheet" href="css/windows.css">
+  <link rel="stylesheet" href="css/apps.css">
+  <link rel="stylesheet" href="css/doommod.css">
+  <link rel="stylesheet" href="js/vendor/mobile-drag-drop/default.css">
+  <link rel="stylesheet" href="css/fx.css">
+</head>
+<body>
+  <div id="os">
+    <div id="wallpaper"></div>
+    <div id="desktop" tabindex="0"></div>
+    <div id="windows"></div>
+    <div id="snap-preview"></div>
+    <div id="widgets-panel" class="flyout glass"></div>
+    <div id="start-menu" class="flyout glass"></div>
+    <div id="quick-settings" class="flyout glass"></div>
+    <div id="notif-center" class="flyout"></div>
+    <div id="taskview"></div>
+    <div id="taskbar" class="glass"></div>
+    <div id="toasts"></div>
+  </div>
+  <div id="lockscreen"></div>
+  <div id="power-screen"></div>
+  <div id="overlay-layer"></div>
+  <div id="night-light"></div>
+  <div id="brightness"></div>
+
+  <!-- ядро -->
+  <script src="js/core/utils.js"></script>
+  <script src="js/fx/host.js"></script>
+  <script src="js/vendor/mobile-drag-drop/index.min.js"></script>
+  <script src="js/vendor/mobile-drag-drop/scroll-behaviour.min.js"></script>
+  <script src="js/fx/touch.js"></script>
+  <script src="js/core/store.js"></script>
+  <script src="js/core/icons.js"></script>
+  <script src="js/core/sound.js"></script>
+  <script src="js/core/fs.js"></script>
+  <script src="js/core/ui.js"></script>
+  <script src="js/core/wm.js"></script>
+  <script src="js/core/apps.js"></script>
+  <script src="js/fx/androidapps.js"></script>
+  <script src="js/core/fileops.js"></script>
+  <script src="js/core/services.js"></script>
+  <!-- приложения -->
+  <script src="js/apps/explorer.js"></script>
+  <script src="js/apps/settings.js"></script>
+  <script src="js/apps/browser.js"></script>
+  <script src="js/apps/notepad.js"></script>
+  <script src="js/apps/calculator.js"></script>
+  <script src="js/apps/paint.js"></script>
+  <script src="js/apps/terminal.js"></script>
+  <script src="js/apps/taskmgr.js"></script>
+  <script src="js/apps/photos.js"></script>
+  <script src="js/apps/pdf.js"></script>
+  <script src="js/apps/craft.js"></script>
+  <script src="js/fx/browsernative.js"></script>
+  <script src="js/apps/music.js"></script>
+  <script src="js/apps/clock.js"></script>
+  <script src="js/apps/calendar.js"></script>
+  <script src="js/apps/weather.js"></script>
+  <script src="js/apps/minesweeper.js"></script>
+  <script src="js/apps/game2048.js"></script>
+  <script src="js/apps/assistant.js"></script>
+  <script src="js/apps/camera.js"></script>
+  <script src="js/apps/doom.js"></script>
+  <!-- оболочка -->
+  <script src="js/shell/desktop.js"></script>
+  <script src="js/shell/taskbar.js"></script>
+  <script src="js/shell/startmenu.js"></script>
+  <script src="js/shell/panels.js"></script>
+  <script src="js/shell/taskview.js"></script>
+  <script src="js/shell/power.js"></script>
+  <script src="js/shell/doommod.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
