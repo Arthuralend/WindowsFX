@@ -1,0 +1,64 @@
+name: Build Lexicon engine (WordCraft web)
+
+# Builds the WebAssembly version of WordCraft (MIT OR Apache-2.0) once and publishes it
+# as a release asset. The APK build downloads it from there, so this slow Rust build
+# only runs when the pinned WordCraft version changes.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ ".github/workflows/craft-web.yml" ]
+
+permissions:
+  contents: write
+
+env:
+  WORDCRAFT_REF: d588e0b87329975d0b06a9cf91e4d7d2ebacb0f8
+
+jobs:
+  wordcraft-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: storytold/wordcraft
+          ref: ${{ env.WORDCRAFT_REF }}
+          path: wordcraft
+          lfs: true
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wordcraft
+
+      - name: Install trunk
+        run: |
+          curl -sSL https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C /usr/local/bin
+          trunk --version
+
+      - name: Build WordCraft web
+        working-directory: wordcraft/apps/wordcraft-web
+        run: trunk build --release
+
+      - name: Package
+        run: |
+          mkdir -p out/wordcraft-web
+          cp -R wordcraft/dist/web/. out/wordcraft-web/
+          cp wordcraft/LICENSE-MIT wordcraft/LICENSE-APACHE out/wordcraft-web/
+          [ -f wordcraft/ATTRIBUTION.md ] && cp wordcraft/ATTRIBUTION.md out/wordcraft-web/ || true
+          cd out && zip -qr9 wordcraft-web.zip wordcraft-web && ls -lh wordcraft-web.zip
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: craft-assets
+          name: Craft engines (Lexicon)
+          body: "WordCraft web build used by Lexicon. Built from storytold/wordcraft@${{ env.WORDCRAFT_REF }}."
+          files: out/wordcraft-web.zip
+          prerelease: true
+          make_latest: false
