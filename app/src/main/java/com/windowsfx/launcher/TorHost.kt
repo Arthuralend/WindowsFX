@@ -91,7 +91,7 @@ class TorHost(private val act: MainActivity) {
             val s = service ?: return@postDelayed
             if (status != TorService.STATUS_STARTING) return@postDelayed
             Thread {
-                val info = runCatching { s.getInfo("status/bootstrap-phase") }.getOrNull() ?: ""
+                val info = runCatching { s.torControlConnection?.getInfo("status/bootstrap-phase") }.getOrNull() ?: ""
                 val p = Regex("PROGRESS=(\\d+)").find(info)?.groupValues?.get(1)?.toIntOrNull()
                 if (p != null && p != bootstrap) { bootstrap = p; emit(JSONObject().put("phase", Regex("SUMMARY=\"([^\"]*)\"").find(info)?.groupValues?.get(1) ?: "")) }
                 if (p == 100 && status == TorService.STATUS_STARTING) { status = TorService.STATUS_ON; main.post { applyProxy() }; emit() }

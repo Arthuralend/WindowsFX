@@ -72,13 +72,8 @@ dependencies {
     // Video player engine (LGPL-2.1): plays MKV, AVI, WMV, FLV, TS, MP4, MOV, WebM, AC-3/DTS, subtitles
     implementation("org.videolan.android:libvlc-all:3.6.5")
     // Tor mode of the browser: Tor daemon (BSD) + WebView proxy override
-    implementation("info.guardianproject:tor-android:0.4.9.14")
+    implementation("info.guardianproject:tor-android:0.4.8.21")
     implementation("info.guardianproject:jtorctl:0.4.5.7")
     implementation("androidx.webkit:webkit:1.12.1")
 }
 
-// tor-android 0.4.9.x declares minCompileSdk 37 in its AAR metadata (it was built with the Android 17 SDK),
-// but uses no newer API through its public classes; the launcher keeps compiling against Android 15.
-tasks.configureEach {
-    if (name.startsWith("check") && name.endsWith("AarMetadata")) enabled = false
-}
