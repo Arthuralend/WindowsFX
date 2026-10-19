@@ -7,6 +7,24 @@
     Object.defineProperty(navigator, 'language', { configurable: true, get: function () { return 'ru-RU'; } });
     Object.defineProperty(navigator, 'languages', { configurable: true, get: function () { return ['ru-RU', 'ru']; } });
   } catch (e) {}
+  // 0b) Холст приложений всегда непрозрачный. На части GPU (Mali, Adreno) движок оставляет в кадре
+  //     альфа-канал < 1, и Android смешивает картинку с тем, что под окном, — изображение в Photostore
+  //     выглядело полупрозрачным. Без альфа-канала у холста кадр выводится как есть.
+  try {
+    var getCtx = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+      if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
+        attrs = Object.assign({}, attrs || {}, { alpha: false, premultipliedAlpha: false });
+      }
+      return getCtx.call(this, type, attrs);
+    };
+    if (window.GPUCanvasContext && GPUCanvasContext.prototype.configure) {
+      var conf = GPUCanvasContext.prototype.configure;
+      GPUCanvasContext.prototype.configure = function (c) { return conf.call(this, Object.assign({}, c, { alphaMode: 'opaque' })); };
+    }
+  } catch (e) {}
+  document.documentElement.style.background = '#1e1e1e';
+
   // 5) Клавиши навигации от Android (стрелки, PageUp/Down, Home/End, Tab, Esc, Del) — прямо на холст
   window.CraftGuest = window.CraftGuest || {};
   window.CraftGuest.key = function (type, key, code, shift, ctrl, alt, meta) {
