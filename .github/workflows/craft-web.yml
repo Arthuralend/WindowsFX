@@ -1,64 +1,80 @@
-name: Build Lexicon engine (WordCraft web)
+name: Build Craft engines (Lexicon, Tabs, Prism)
 
-# Builds the WebAssembly version of WordCraft (MIT OR Apache-2.0) once and publishes it
-# as a release asset. The APK build downloads it from there, so this slow Rust build
-# only runs when the pinned WordCraft version changes.
+# Builds the WebAssembly versions of WordCraft, GridCraft and PhotoCraft (MIT OR Apache-2.0)
+# with one WindowsFX change: egui-wgpu asks the GPU only for the texture size it supports
+# (tools/patch-egui-wgpu.sh). Results go to the "craft-assets" release; the APK build
+# downloads them from there.
 
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths: [ ".github/workflows/craft-web.yml" ]
+    paths: [ ".github/workflows/craft-web.yml", "tools/patch-egui-wgpu.sh" ]
 
 permissions:
   contents: write
 
-env:
-  WORDCRAFT_REF: d588e0b87329975d0b06a9cf91e4d7d2ebacb0f8
-
 jobs:
-  wordcraft-web:
+  engine:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: wordcraft
+            ref: d588e0b87329975d0b06a9cf91e4d7d2ebacb0f8
+          - app: gridcraft
+            ref: 66ce6be4743f4227047f76f56815520f824e6d81
+          - app: photocraft
+            ref: d95fdf3181c01ad41e95456091a394b105a9afb2
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: storytold/wordcraft
-          ref: ${{ env.WORDCRAFT_REF }}
-          path: wordcraft
+          path: wfx
+
+      - uses: actions/checkout@v4
+        with:
+          repository: storytold/${{ matrix.app }}
+          ref: ${{ matrix.ref }}
+          path: src
           lfs: true
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Patch egui-wgpu (GPU texture limit)
+        run: bash wfx/tools/patch-egui-wgpu.sh src
+
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: wordcraft
+          workspaces: src
+          key: ${{ matrix.app }}
 
       - name: Install trunk
         run: |
           curl -sSL https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C /usr/local/bin
           trunk --version
 
-      - name: Build WordCraft web
-        working-directory: wordcraft/apps/wordcraft-web
-        run: trunk build --release
-
-      - name: Package
+      - name: Build and package
+        working-directory: src
+        env:
+          DIST: ${{ github.workspace }}/out
         run: |
-          mkdir -p out/wordcraft-web
-          cp -R wordcraft/dist/web/. out/wordcraft-web/
-          cp wordcraft/LICENSE-MIT wordcraft/LICENSE-APACHE out/wordcraft-web/
-          [ -f wordcraft/ATTRIBUTION.md ] && cp wordcraft/ATTRIBUTION.md out/wordcraft-web/ || true
-          cd out && zip -qr9 wordcraft-web.zip wordcraft-web && ls -lh wordcraft-web.zip
+          mkdir -p "$DIST"
+          bash packaging/web/package.sh
+          cd "$DIST"
+          ZIP=$(ls ${{ matrix.app }}-web-*.zip | head -1)
+          mv "$ZIP" ${{ matrix.app }}-web.zip
+          ls -lh
 
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
           tag_name: craft-assets
-          name: Craft engines (Lexicon)
-          body: "WordCraft web build used by Lexicon. Built from storytold/wordcraft@${{ env.WORDCRAFT_REF }}."
-          files: out/wordcraft-web.zip
+          name: Craft engines (Lexicon, Tabs, Prism)
+          body: "Web builds of WordCraft, GridCraft and PhotoCraft used by WindowsFX, with egui-wgpu limited to the GPU's texture size."
+          files: out/${{ matrix.app }}-web.zip
           prerelease: true
           make_latest: false
