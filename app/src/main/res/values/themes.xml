@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WFX" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorAccent">#7C6CFF</item>
+        <item name="android:colorPrimary">#1A1F35</item>
+        <item name="android:windowBackground">@drawable/wp_default</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#141828</item>
+    </style>
+
+    <style name="Theme.WFX.Light" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorAccent">#5B4BFF</item>
+        <item name="android:colorPrimary">#EEF0F8</item>
+        <item name="android:windowBackground">@drawable/wp_default</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#F3F4FA</item>
+    </style>
+</resources>

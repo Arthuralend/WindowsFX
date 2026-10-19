@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="680" android:viewportHeight="680">
+    <group android:translateX="-250" android:translateY="-120">
+    <path android:pathData="M292,312 L456,287 L548,766 L292,729 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="292" android:startY="287" android:endX="548" android:endY="766">
+                <item android:offset="0" android:color="#FF5EEAD4"/>
+                <item android:offset="0.5" android:color="#FF22D3EE"/>
+                <item android:offset="1" android:color="#FF2563EB"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M486,270 L734,232 L734,770 L574,746 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="486" android:startY="232" android:endX="734" android:endY="770">
+                <item android:offset="0" android:color="#FF818CF8"/>
+                <item android:offset="0.55" android:color="#FF8B5CF6"/>
+                <item android:offset="1" android:color="#FFD946EF"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M292,312 L456,287 L548,766 L292,729 Z M486,270 L734,232 L734,770 L574,746 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="240" android:endX="0" android:endY="770">
+                <item android:offset="0" android:color="#73FFFFFF"/>
+                <item android:offset="0.45" android:color="#0FFFFFFF"/>
+                <item android:offset="1" android:color="#00FFFFFF"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M471,250 L566,800" android:strokeColor="#E6FFFFFF" android:strokeWidth="8" android:strokeLineCap="round"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M808,136 C816,196 826,206 886,214 C826,222 816,232 808,292 C800,232 790,222 730,214 C790,206 800,196 808,136 Z"/>
+    </group>
+</vector>
