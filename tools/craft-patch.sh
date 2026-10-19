@@ -18,7 +18,7 @@ case "$APP" in
   photocraft) FROM=PhotoCraft; TO=Photostore ;;
   *) echo "unknown app $APP" >&2; exit 1 ;;
 esac
-mapfile -t FILES < <(grep -rlI -e "$FROM" -e "ArtCraft" -e "getartcraft" --include='*.rs' --include='*.tsv' --include='*.html' crates "apps/$APP-web" || true)
+mapfile -t FILES < <(grep -rlI -e "$FROM" -e "ArtCraft" -e "getartcraft" --include='*.rs' --include='*.tsv' --include='*.html' crates apps/"$APP"-web* || true)
 if [ "${#FILES[@]}" -gt 0 ]; then
   sed -i \
     -e "s/Loading $FROM&hellip;/Загрузка $TO\&hellip;/g" \

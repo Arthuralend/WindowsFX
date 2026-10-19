@@ -2,6 +2,11 @@
    Направляет «Открыть» и «Сохранить» этих приложений в файлы WindowsFX. */
 (function () {
   'use strict';
+  // 0) Интерфейс приложений — на русском, как и весь WindowsFX (движки берут язык из navigator)
+  try {
+    Object.defineProperty(navigator, 'language', { configurable: true, get: function () { return 'ru-RU'; } });
+    Object.defineProperty(navigator, 'languages', { configurable: true, get: function () { return ['ru-RU', 'ru']; } });
+  } catch (e) {}
   // 5) Клавиши навигации от Android (стрелки, PageUp/Down, Home/End, Tab, Esc, Del) — прямо на холст
   window.CraftGuest = window.CraftGuest || {};
   window.CraftGuest.key = function (type, key, code, shift, ctrl, alt, meta) {
