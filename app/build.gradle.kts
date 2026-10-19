@@ -13,8 +13,17 @@ android {
         targetSdk = 34
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
         versionName = "0.4." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
-        // libVLC (video player) ships native code: ARM tablets and phones, plus x86_64 (emulators, Chromebooks)
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+    }
+
+    // libVLC (video player) ships native code. Two APKs: arm64 (almost every current tablet and phone,
+    // much smaller) and a universal one (also old 32-bit ARM devices, emulators and Chromebooks).
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
+        }
     }
 
     packaging {
