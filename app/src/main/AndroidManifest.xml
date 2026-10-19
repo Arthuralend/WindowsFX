@@ -16,6 +16,8 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
@@ -69,5 +71,6 @@
             android:authorities="com.windowsfx.launcher.files"
             android:exported="false"
             android:grantUriPermissions="true" />
+        <receiver android:name=".ReminderReceiver" android:exported="false" />
     </application>
 </manifest>

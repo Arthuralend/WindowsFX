@@ -586,9 +586,21 @@ function openSettings(args = {}) {
         row('globe', 'Часовой пояс', `(UTC${off >= 0 ? '+' : ''}${off}) ${tz} — определяется автоматически`, null),
         row('sunrise', 'Синхронизация', 'Время синхронизируется с вашим устройством', null));
       const s2 = sec('Язык и регион');
-      s2.append(row('lang', 'Язык интерфейса Windows', null, selectEl('ru', [['ru', 'Русский (Россия)']], () => {})),
-        row('location', 'Регион', null, selectEl('ru', [['ru', 'Россия']], () => {})),
-        row('keyboard', 'Раскладка клавиатуры', null, h('<span class="muted">Используется раскладка вашего устройства</span>')));
+      s2.append(row('lang', 'Язык интерфейса WindowsFX', 'Меню, окна и программы. После выбора рабочий стол перезапустится', selectEl(I18N.lang(), I18N.LANGS.map(l => [l.id, l.name]), v => I18N.setLang(v))));
+      const s2b = sec('Языки ввода (клавиатура)');
+      const langRow = id => {
+        const L = Kbd.LANGS[id];
+        const cb = h(`<input type="checkbox" class="check" ${Kbd.list().includes(id) ? 'checked' : ''}>`);
+        cb.onchange = () => {
+          const ls = Object.keys(Kbd.LANGS).filter(k => k === id ? cb.checked : Kbd.list().includes(k));
+          if (!ls.length) { cb.checked = true; return; }
+          Kbd.setList(ls);
+        };
+        return row('keyboard', `${L.short} · ${L.name}`, 'Раскладка: ' + L.kb, cb);
+      };
+      s2b.append(...Object.keys(Kbd.LANGS).map(langRow),
+        row('keyboard', 'Переключение языка ввода', 'Также Win+Пробел и щелчок по индикатору на панели задач', sel('kbdHotkey', [['alt+shift', 'Alt+Shift'], ['ctrl+shift', 'Ctrl+Shift'], ['any', 'Alt+Shift и Ctrl+Shift']])),
+        row('phone', 'Вместе с клавиатурой Android', 'Когда вы меняете язык клавиатуры в Android, WindowsFX переключается на тот же язык', tgl('kbdFollowAndroid')));
       const s3 = sec('Погода');
       const cityIn = h(`<input class="input" style="width:200px" value="${esc(Store.get('weatherCity'))}">`);
       const applyCity = async () => {
@@ -604,7 +616,7 @@ function openSettings(args = {}) {
       cityIn.onkeydown = e => { if (e.key === 'Enter') applyCity(); };
       s3.append(row('location', 'Город для прогноза', 'Используется в виджетах, на панели задач и в приложении «Погода»', [cityIn, btn('Сохранить', applyCity, 'sm')]),
         row('thermo', 'Единицы измерения', null, sel('weatherUnits', [['C', 'Цельсий (°C)'], ['F', 'Фаренгейт (°F)']])));
-      pg.append(now, s, s2, s3);
+      pg.append(now, s, s2, s2b, s3);
     },
 
     accessibility() {

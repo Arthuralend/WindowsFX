@@ -154,6 +154,7 @@
     QuickSettings.init();
     NotifCenter.init();
     Widgets.init();
+    try { DeskWidgets.init(); } catch (e) { console.error(e); }
     TaskView.init();
     Power.init();
     bindGlobal();

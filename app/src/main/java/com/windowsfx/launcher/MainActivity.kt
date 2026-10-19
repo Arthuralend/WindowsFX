@@ -56,6 +56,7 @@ class MainActivity : Activity() {
         private set
     lateinit var browser: BrowserHost
     lateinit var video: VideoHost
+    lateinit var tor: TorHost
         private set
 
     private var fileCallback: ValueCallback<Array<Uri>>? = null
@@ -97,6 +98,7 @@ class MainActivity : Activity() {
         setContentView(root)
         browser = BrowserHost(this, browserLayer)
         video = VideoHost(this, videoLayer)
+        tor = TorHost(this)
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         val s = web.settings
@@ -175,6 +177,7 @@ class MainActivity : Activity() {
         } catch (_: Exception) {
         }
         runCatching { video.onDestroy() }
+        runCatching { tor.onDestroy() }
         web.destroy()
         super.onDestroy()
     }
@@ -197,7 +200,8 @@ class MainActivity : Activity() {
     /** Home button while the desktop is already open. */
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        emit("home", "{}")
+        val rid = intent?.getStringExtra(Notifier.EXTRA_ID)
+        if (rid != null) emit("reminder", JSONObject().put("id", rid).toString()) else emit("home", "{}")
     }
 
     @Deprecated("Deprecated in Java")

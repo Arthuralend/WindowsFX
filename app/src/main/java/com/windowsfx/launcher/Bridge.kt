@@ -55,6 +55,13 @@ class Bridge(private val act: MainActivity) {
 
     @JavascriptInterface fun hasAccess(): String = ok(fs.hasAccess())
     @JavascriptInterface fun keyRoute(on: Boolean): String { act.routeKeys = on; return ok() }
+    /** Language of the current Android keyboard (input method subtype), e.g. "ru-RU". */
+    @JavascriptInterface fun imeLocale(): String = run {
+        val imm = act.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        val st = imm.currentInputMethodSubtype
+        val tag = st?.languageTag?.takeIf { it.isNotEmpty() } ?: @Suppress("DEPRECATION") st?.locale ?: ""
+        if (tag.isNotEmpty()) tag else act.resources.configuration.locales[0].toLanguageTag()
+    }
     @JavascriptInterface fun cursors(on: Boolean): String { Cursors.enabled = on; return ok() }
     @JavascriptInterface fun requestAccess(): String { ui { fs.requestAccess(act) }; return ok() }
     @JavascriptInterface fun roots(): String = run { fs.roots() }
@@ -205,6 +212,17 @@ class Bridge(private val act: MainActivity) {
     }
     @JavascriptInterface fun webSnapshot(id: String): String { ui { act.browser.snapshot(id) }; return ok() }
     @JavascriptInterface fun webDestroy(id: String): String { ui { act.browser.destroy(id) }; return ok() }
+
+    // ---- Напоминания: уведомления Android
+    @JavascriptInterface fun notifySchedule(id: String, at: Double, title: String, body: String): String = run { Notifier.schedule(act, id, at.toLong(), title, body) }
+    @JavascriptInterface fun notifyCancel(id: String): String = run { Notifier.cancel(act, id) }
+    @JavascriptInterface fun notifyPermission(): String { ui { Notifier.requestPermission(act) }; return ok() }
+
+    // ---- Tor
+    @JavascriptInterface fun torStart(): String { ui { act.tor.start() }; return ok() }
+    @JavascriptInterface fun torStop(): String { ui { act.tor.stop() }; return ok() }
+    @JavascriptInterface fun torNewnym(): String { ui { act.tor.newIdentity() }; return ok() }
+    @JavascriptInterface fun torInfo(): String = run { act.tor.info() }
 
     // ---- Видеоплеер (libVLC)
     @JavascriptInterface fun vlcCreate(id: String): String { ui { act.video.create(id) }; return ok() }

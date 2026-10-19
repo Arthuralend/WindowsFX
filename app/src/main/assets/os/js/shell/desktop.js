@@ -248,6 +248,12 @@ const Desktop = (() => {
       { label: 'Вставить', icon: 'paste', shortcut: 'Ctrl+V', disabled: !FileOps.canPaste(), action: () => pasteHere(x, y) },
       { label: 'Создать', icon: 'plus', items: FileOps.createItems(FS.P.desktop, p => { placeAt([FS.basename(p)], cellAt(x, y)); render(); renameNew(p); }) },
       { sep: true },
+      { label: 'Добавить виджет', icon: 'apps', items: [
+        { label: 'Напоминания — Сегодня', icon: 'app:reminders', action: () => DeskWidgets.add('reminders', { list: 'today' }) },
+        { label: 'Напоминания — Все', icon: 'app:reminders', action: () => DeskWidgets.add('reminders', { list: 'all' }) },
+        { label: 'Дела — Сегодня', icon: 'app:things', action: () => DeskWidgets.add('things', { list: 'today' }) },
+        { label: 'Дела — Входящие', icon: 'app:things', action: () => DeskWidgets.add('things', { list: 'inbox' }) },
+      ] },
       { label: 'Загрузить файлы с компьютера…', icon: 'upload', action: () => FileOps.uploadInto(FS.P.desktop) },
       { label: 'Открыть в терминале', icon: 'terminal', action: () => Apps.launch('terminal', { cwd: FS.P.desktop }) },
       { sep: true },

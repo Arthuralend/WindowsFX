@@ -71,4 +71,8 @@ dependencies {
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
     // Video player engine (LGPL-2.1): plays MKV, AVI, WMV, FLV, TS, MP4, MOV, WebM, AC-3/DTS, subtitles
     implementation("org.videolan.android:libvlc-all:3.6.5")
+    // Tor mode of the browser: Tor daemon (BSD) + WebView proxy override
+    implementation("info.guardianproject:tor-android:0.4.9.14")
+    implementation("info.guardianproject:jtorctl:0.4.5.7")
+    implementation("androidx.webkit:webkit:1.12.1")
 }

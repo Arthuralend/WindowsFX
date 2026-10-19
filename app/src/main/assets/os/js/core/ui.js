@@ -54,7 +54,7 @@ const UI = (() => {
       if (it.sep) { m.append(h('<div class="ctx-sep"></div>')); return; }
       if (it.header) { m.append(h(`<div class="ctx-header">${esc(it.header)}</div>`)); return; }
       const row = h(`<div class="ctx-item ${it.disabled ? 'disabled' : ''} ${it.danger ? 'danger' : ''}" role="menuitem">
-        <span class="ctx-ic">${it.checked ? Icons.ui('check', 16) : renderIcon(it.icon)}</span>
+        <span class="ctx-ic">${it.checked ? Icons.ui('check', 16) : it.swatch ? `<i style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${esc(it.swatch)}"></i>` : renderIcon(it.icon)}</span>
         <span class="ctx-label">${esc(it.label)}</span>
         ${it.items ? `<span class="ctx-sub">${Icons.ui('chevron-right', 12)}</span>` : `<span class="ctx-sc">${esc(it.shortcut || '')}</span>`}
       </div>`);

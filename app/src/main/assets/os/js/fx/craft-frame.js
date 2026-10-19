@@ -35,6 +35,21 @@
     (t.tagName === 'INPUT' ? t : c).dispatchEvent(new KeyboardEvent(type, o));
   };
 
+  // 5b) Языки ввода WindowsFX (ENG / РУС / ՀԱՅ) и в окнах Lexicon, Tabs, Photostore
+  window.addEventListener('keydown', function (e) {
+    var K;
+    try { K = window.parent !== window && window.parent.Kbd; } catch (err) { K = null; }
+    if (!K || !e.isTrusted) return;
+    var a = document.activeElement;
+    if (a && a.tagName === 'INPUT') { K.onKeyDown(e, document); return; }
+    if ((e.key === 'Shift' && e.altKey) || (e.key === 'Alt' && e.shiftKey) || (e.code === 'Space' && e.metaKey)) { K.onKeyDown(e, document); return; }
+    var ch = K.translate(e);
+    if (!ch) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    var c = document.querySelector('canvas');
+    if (c) c.dispatchEvent(new KeyboardEvent('keydown', { key: ch, code: '', bubbles: true, cancelable: true, composed: true, view: window }));
+  }, true);
+
   // 6) Сенсорные жесты для холста egui:
   //    два пальца — касание = правая кнопка, движение = прокрутка колесом (с инерцией), щипок = масштаб (Ctrl+колесо).
   //    Первое касание придерживается на 90 мс, чтобы второй палец не превращал жест в щелчок.

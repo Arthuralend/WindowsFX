@@ -174,6 +174,8 @@ const Widgets = (() => {
         <div class="wg"><div class="wg-title">${Icons.ui('calendar', 14)}Сегодня<button class="icon-btn wg-cal" title="Календарь">${Icons.ui('plus', 14)}</button></div>
           ${todayEv.length ? todayEv.slice(0, 4).map(e => `<div class="row-gap"><i style="width:4px;height:24px;border-radius:2px;background:${esc(e.color || 'var(--accent)')}"></i><div><div>${esc(e.title)}</div><div class="muted small">${e.time || 'Весь день'}</div></div></div>`).join('') : '<div class="muted">На сегодня событий нет.</div>'}
         </div>
+        <div class="wg wg-rem"><div class="wg-title"><span>${Icons.ui('list', 14)} Напоминания</span><button class="icon-btn wg-pin-rem" title="Закрепить на рабочем столе">${Icons.ui('pin', 14)}</button></div><div class="wg-rem-body" style="flex:1;min-height:0"></div></div>
+        <div class="wg wg-things"><div class="wg-title"><span>${Icons.ui('check', 14)} Дела</span><button class="icon-btn wg-pin-tg" title="Закрепить на рабочем столе">${Icons.ui('pin', 14)}</button></div><div class="wg-tg-body" style="flex:1;min-height:0"></div></div>
         <div class="wg wg-todo"><div class="wg-title">${Icons.ui('check', 14)}Задачи</div><div class="todo-list"></div><input class="input todo-in" placeholder="Добавить задачу и нажать Enter"></div>
         <div class="wg wg-note"><div class="wg-title">${Icons.ui('edit', 14)}Заметка</div><textarea placeholder="Напишите что-нибудь…">${esc(Persist.get('widgets.note', ''))}</textarea></div>
         <div class="wg"><div class="wg-title">${Icons.ui('cpu', 14)}Система</div>
@@ -201,6 +203,10 @@ const Widgets = (() => {
     $('.todo-in', el()).onkeydown = e => {
       if (e.key === 'Enter' && e.target.value.trim()) { todo.push({ t: e.target.value.trim(), d: false }); e.target.value = ''; saveTodo(); drawTodo(); }
     };
+    try { Reminders.widget($('.wg-rem-body', el()), { list: 'today', max: 5 }); } catch (e) { console.error(e); }
+    try { Things.widget($('.wg-tg-body', el()), { list: 'today', max: 5 }); } catch (e) { console.error(e); }
+    $('.wg-pin-rem', el()).onclick = () => { Shell.close('widgets'); DeskWidgets.add('reminders', { list: 'today' }); };
+    $('.wg-pin-tg', el()).onclick = () => { Shell.close('widgets'); DeskWidgets.add('things', { list: 'today' }); };
     $('.wg-note textarea', el()).oninput = debounce(e => Persist.set('widgets.note', e.target.value), 300);
     $('.wx-open', el()).onclick = () => { Shell.close('widgets'); Apps.launch('weather'); };
     $('.wg-cal', el()).onclick = () => { Shell.close('widgets'); Apps.launch('calendar', { add: true, date: dateKey(new Date()) }); };

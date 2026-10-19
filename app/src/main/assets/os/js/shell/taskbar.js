@@ -22,7 +22,7 @@ const Taskbar = (() => {
       </div>
       <div class="tb-right">
         <div class="tb-btn tb-sys tb-up" title="Отображать скрытые значки" style="width:30px">${Icons.ui('chevron-up', 14)}</div>
-        <div class="tb-lang" title="Русский (Россия)&#10;Клавиатура: русская">РУС</div>
+        <div class="tb-lang" title="Язык ввода (Alt+Shift)"></div>
         <div class="tb-tray" data-flyout="quick" title="Сеть, звук, батарея"></div>
         <div class="tb-clock" data-flyout="notif"><div class="tb-ck"><span class="ck-t"></span><span class="ck-d"></span></div><span class="tb-bell">${Icons.ui('bell', 16)}<span class="badge hidden"></span></span></div>
         <div class="tb-show-desktop" title="Свернуть все окна"></div>
@@ -44,7 +44,19 @@ const Taskbar = (() => {
         { label: 'Часы и будильники', icon: 'app:clock', action: () => Apps.launch('clock') },
       ], { above: true });
     };
-    $('.tb-lang', t).onclick = () => UI.notify({ title: 'Язык ввода', body: 'Русский (Россия) — единственный установленный язык интерфейса.', icon: 'lang', transient: true, silent: true });
+    const langEl = $('.tb-lang', t);
+    const showLang = () => { const l = Kbd.LANGS[Kbd.current()]; langEl.textContent = l.short; langEl.title = l.name + '\nКлавиатура: ' + l.kb + '\nПереключение: Alt+Shift или Win+Пробел'; };
+    showLang();
+    Kbd.on('change', showLang);
+    langEl.onclick = e => {
+      const r = e.currentTarget.getBoundingClientRect();
+      UI.menu(r.left - 160, r.top - 8, [
+        { header: 'Язык ввода' },
+        ...Kbd.list().map(l => ({ label: Kbd.LANGS[l].short + '   ' + Kbd.LANGS[l].name, checked: l === Kbd.current(), action: () => Kbd.set(l) })),
+        { sep: true },
+        { label: 'Языковые параметры', icon: 'lang', action: () => Apps.launch('settings', { page: 'time' }) },
+      ], { above: true });
+    };
 
     t.addEventListener('contextmenu', e => {
       e.preventDefault();

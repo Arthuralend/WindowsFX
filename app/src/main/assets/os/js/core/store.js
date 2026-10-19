@@ -22,7 +22,7 @@ const Store = (() => {
     showSeconds: false,
     pinned: ['explorer', 'browser', 'lexicon', 'tabs', 'photos', 'settings'],
     // Пуск
-    startPinned: ['explorer', 'browser', 'lexicon', 'tabs', 'photostore', 'winarch', 'fxplayer', 'pdf', 'photos', 'settings', 'notepad', 'calculator', 'paint', 'terminal', 'music', 'clock', 'calendar', 'weather', 'taskmgr', 'camera', 'assistant', 'minesweeper', 'game2048', 'doom'],
+    startPinned: ['explorer', 'browser', 'lexicon', 'tabs', 'photostore', 'winarch', 'fxplayer', 'reminders', 'things', 'pdf', 'photos', 'settings', 'notepad', 'calculator', 'paint', 'terminal', 'music', 'clock', 'calendar', 'weather', 'taskmgr', 'camera', 'assistant', 'minesweeper', 'game2048', 'doom'],
     showRecommended: true,
     // Рабочий стол
     desktopIcons: true,
@@ -61,6 +61,9 @@ const Store = (() => {
     startupApps: [],
     defaultApps: { text: 'notepad', image: 'photos', audio: 'music', html: 'browser', pdf: 'pdf', doc: 'lexicon', sheet: 'tabs', psd: 'photostore', archive: 'winarch', video: 'fxplayer' },
     androidWindows: true,
+    kbdLangs: ['en', 'ru'],
+    kbdHotkey: 'alt+shift',
+    kbdFollowAndroid: true,
     immersive: true,
     uiScale: 100,
     lastUpdateCheck: 0,
@@ -81,8 +84,8 @@ const Store = (() => {
     for (const k of ['pinned', 'startPinned', 'startupApps']) data[k] = ren(data[k]);
     data.defaultApps = { ...defaults.defaultApps, ...(data.defaultApps || {}) };
     if (data.defaultApps.psd === 'prism') data.defaultApps.psd = 'photostore';
-    if (Array.isArray(data.startPinned)) for (const id of ['winarch', 'fxplayer']) if (!data.startPinned.includes(id) && !(data.migrated || []).includes(id)) data.startPinned.push(id);
-    data.migrated = [...new Set([...(data.migrated || []), 'winarch', 'fxplayer'])];
+    if (Array.isArray(data.startPinned)) for (const id of ['winarch', 'fxplayer', 'reminders', 'things', 'lines']) if (!data.startPinned.includes(id) && !(data.migrated || []).includes(id)) data.startPinned.push(id);
+    data.migrated = [...new Set([...(data.migrated || []), 'winarch', 'fxplayer', 'reminders', 'things', 'lines'])];
   })();
 
   const em = new Emitter();

@@ -21,9 +21,11 @@ function openBrowser(args = {}) {
   const bookmarks = () => Persist.get('browser.bookmarks', DEFAULT_BOOKMARKS);
   const setBookmarks = v => { Persist.set('browser.bookmarks', v); renderBookmarks(); updateStar(); };
 
-  const win = WM.open({ app: 'browser', title: 'Новая вкладка — Браузер', width: 1100, height: 720, minWidth: 480, minHeight: 320 });
+  const tor = !!args.tor;
+  const win = WM.open({ app: tor ? 'torbrowser' : 'browser', title: tor ? 'Браузер Tor' : 'Новая вкладка — Браузер', width: 1100, height: 720, minWidth: 480, minHeight: 320 });
   const b = win.body;
   b.classList.add('br');
+  if (tor) b.classList.add('br-tor');
   win.tbExtra.innerHTML = `<div class="br-tabs"></div><button class="icon-btn sm br-newtab no-drag" title="Новая вкладка">${Icons.ui('plus', 14)}</button>`;
   b.innerHTML = `
     <div class="br-bar">
@@ -35,6 +37,7 @@ function openBrowser(args = {}) {
       <button class="icon-btn br-ext" title="Открыть в настоящем браузере">${Icons.ui('external', 16)}</button>
       <button class="icon-btn br-menu" title="Настройки и другое">${Icons.ui('more', 16)}</button>
     </div>
+    <div class="br-torbar hidden"><span class="br-tor-ic">${Icons.get('tor', 16)}</span><span class="br-tor-t"></span><div class="br-tor-p"><i></i></div><button class="btn sm br-tor-new" title="Новая цепочка узлов и очистка cookie">Новая личность</button><button class="btn sm br-tor-off">Выключить Tor</button></div>
     <div class="br-bookmarks"></div>
     <div class="br-progress"><i></i></div>
     <div class="br-views"></div>`;
@@ -114,7 +117,9 @@ function openBrowser(args = {}) {
     if (/^[a-z]:[\\/]/i.test(s)) return 'file:///' + FS.norm(s);
     if (/^https?:\/\//i.test(s)) return s;
     if (/^localhost(:\d+)?(\/|$)/i.test(s)) return 'http://' + s;
+    if (!/\s/.test(s) && /^[\w.-]+\.onion(:\d+)?(\/.*)?$/i.test(s)) return 'http://' + s;
     if (!/\s/.test(s) && /^[\w-]+(\.[\w-]+)+(:\d+)?(\/.*)?$/i.test(s)) return 'https://' + s;
+    if (tor || TorMode.active()) return 'https://duckduckgo.com/?q=' + encodeURIComponent(s);
     return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(s);
   }
 
@@ -337,7 +342,7 @@ function openBrowser(args = {}) {
     $('.br-lock', b).title = internal ? 'Внутренняя страница' : cur.url.startsWith('https:') ? 'Подключение защищено' : cur.url.startsWith('file:') ? 'Локальный файл' : 'Подключение не защищено';
     $('.br-back', b).disabled = !(cur.mode === 'native' && cur.canBack) && !cur.hist.slice(0, cur.idx).some(x => x !== 'native');
     $('.br-fwd', b).disabled = !(cur.mode === 'native' && cur.canFwd) && cur.idx >= cur.hist.length - 1;
-    win.setTitle(cur.title + ' — Браузер');
+    win.setTitle(cur.title + (tor ? ' — Браузер Tor' : ' — Браузер'));
     updateStar();
     if (cur.loading) startProgress(); else $('.br-progress', b).classList.remove('on');
   }
@@ -403,8 +408,11 @@ function openBrowser(args = {}) {
       { label: 'Открыть файл…', icon: 'folder-open', shortcut: 'Ctrl+O', action: openFile },
       { label: 'Сохранить ярлык на рабочий стол', icon: 'desktop', disabled: !/^https?:/.test(cur.url), action: () => { FS.write(FS.P.desktop + '/' + FS.unique(FS.P.desktop, (cur.title || 'Сайт').replace(/[\\/:*?"<>|]/g, '') + '.lnk'), JSON.stringify({ app: 'browser', args: { url: cur.url } })); } },
       { label: 'Версия для ПК (сайты)', icon: 'desktop', checked: !!cur.desktop, disabled: cur.mode !== 'native', action: () => FX.call('webAction', cur.id, 'desktop') },
+      { sep: true },
+      { label: TorMode.active() ? 'Выключить режим Tor' : 'Включить режим Tor (анонимно)', icon: 'app:tor', action: () => { if (TorMode.active()) TorMode.stop(); else TorMode.start(); } },
+      TorMode.active() ? { label: 'Новая личность Tor', icon: 'refresh', action: () => TorMode.newIdentity() } : null,
       { label: 'О WindowsFX', icon: 'info', action: () => newTab('about:windows') },
-    ]);
+    ].filter(Boolean));
   };
   $('.br-bookmarks', b).classList.toggle('hidden', !Persist.get('browser.showBar', true));
 
@@ -424,7 +432,28 @@ function openBrowser(args = {}) {
   });
 
   const offNet = [Store.on('wifi', () => cur && !cur.url.startsWith('about:') && reload()), Store.on('airplane', () => cur && !cur.url.startsWith('about:') && reload())];
-  win.onClose = () => { offNet.forEach(f => f()); tabs.forEach(t => t.native && BrowserNative.destroy(t)); };
+  // ---- Tor: полоса состояния; страницы грузятся только после подключения
+  let torWasOn = TorMode.isOn();
+  const torUI = st => {
+    const bar = $('.br-torbar', b);
+    const on = st.status === 'ON', starting = st.status === 'STARTING';
+    bar.classList.toggle('hidden', !(on || starting));
+    b.classList.toggle('br-tor', on || starting || tor);
+    $('.br-tor-t', bar).textContent = on ? 'Tor: подключено — вы анонимны' : starting ? `Подключение к сети Tor… ${st.progress || 0}%${st.phase ? ' · ' + st.phase : ''}` : '';
+    $('.br-tor-p i', bar).style.width = (on ? 100 : st.progress || 3) + '%';
+    $('.br-tor-p', bar).classList.toggle('hidden', on);
+    $('.br-tor-new', bar).classList.toggle('hidden', !on);
+    if (on && !torWasOn && cur && /^https?:/.test(cur.url)) reload();
+    torWasOn = on;
+  };
+  offNet.push(TorMode.on('change', torUI));
+  $('.br-tor-new', b).onclick = () => TorMode.newIdentity();
+  $('.br-tor-off', b).onclick = () => TorMode.stop();
+  torUI(TorMode.state());
+  win.onClose = () => {
+    offNet.forEach(f => f()); tabs.forEach(t => t.native && BrowserNative.destroy(t));
+    if (tor && !WM.list().some(w => w !== win && w.app === 'torbrowser')) TorMode.stop();
+  };
   win.onBack = () => { if (cur && cur.mode === 'native' && cur.canBack) { back(); return true; } return false; };
   win.onArgs = a => openArgs(a);
 

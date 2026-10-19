@@ -81,6 +81,12 @@ const FileOps = (() => {
     catch (e) { UI.alert('Ошибка', e.message, 'error'); return null; }
   }
 
+  /** Пустые документы Word и Excel (минимальные файлы Office Open XML) */
+  const TEMPLATES = {
+    docx: 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,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',
+    xlsx: 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,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',
+  };
+
   function newFile(dir, name = 'Текстовый документ.txt', content = '') {
     try { return FS.write(dir + '/' + FS.unique(dir, name), content); }
     catch (e) { UI.alert('Ошибка', e.message, 'error'); return null; }
@@ -264,6 +270,9 @@ const FileOps = (() => {
     return [
       { label: 'Папку', icon: 'app:folder', action: () => done(newFolder(dir)) },
       { sep: true },
+      { label: 'Документ Word', icon: 'app:file-doc', action: () => done(newFile(dir, 'Новый документ.docx', TEMPLATES.docx)) },
+      { label: 'Лист Excel', icon: 'app:file-sheet', action: () => done(newFile(dir, 'Новая таблица.xlsx', TEMPLATES.xlsx)) },
+      { sep: true },
       { label: 'Текстовый документ', icon: 'app:file-text', action: () => done(newFile(dir, 'Текстовый документ.txt')) },
       { label: 'Документ HTML', icon: 'app:file-html', action: () => done(newFile(dir, 'Новая страница.html', '<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <title>Новая страница</title>\n</head>\n<body>\n  <h1>Привет!</h1>\n</body>\n</html>\n')) },
       { label: 'Документ Markdown', icon: 'app:file-text', action: () => done(newFile(dir, 'Заметка.md', '# Заголовок\n\n')) },
@@ -273,7 +282,7 @@ const FileOps = (() => {
 
   /** Отображаемое имя элемента (ярлыки и известные расширения скрываются) */
   function label(name, node) {
-    if (!node || node.t === 'd') return name;
+    if (!node || node.t === 'd') return typeof I18N !== 'undefined' ? I18N.name(name) : name;
     const e = FS.ext(name);
     if (e === 'lnk') return FS.stem(name);
     if (!Store.get('showExtensions') && e && FS.typeOf(name, node).kind !== 'other') return FS.stem(name);
@@ -283,7 +292,7 @@ const FileOps = (() => {
   return {
     label, appFor, open, openWith, openWithItems, addRecent, recent, newFolder, newFile, createShortcut, appShortcut,
     remove, rename, renameDialog, copy, cut, paste, canPaste, isCut, moveTo, importFiles, uploadInto, download, setWallpaper,
-    itemMenu, createItems, on: (e, f) => em.on(e, f), clip: () => clip,
+    itemMenu, createItems, templates: TEMPLATES, on: (e, f) => em.on(e, f), clip: () => clip,
   };
 })();
 
