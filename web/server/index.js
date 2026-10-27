@@ -40,9 +40,9 @@ const box = A.cipher(secret);
 
 // ---------- учётная запись администратора
 (function initAdmin() {
+  // ADMIN_LOGIN/ADMIN_PASSWORD задают администратора при первом запуске; ADMIN_RESET=1 — сбросить пароль из настроек
   if (env.ADMIN_LOGIN && env.ADMIN_PASSWORD) {
-    const cur = setting('admin_login');
-    if (cur !== env.ADMIN_LOGIN || !A.checkPassword(env.ADMIN_PASSWORD, setting('admin_pass'))) {
+    if (!setting('admin_login') || env.ADMIN_RESET === '1') {
       setSetting('admin_login', env.ADMIN_LOGIN);
       setSetting('admin_pass', A.hashPassword(env.ADMIN_PASSWORD));
     }
@@ -307,10 +307,10 @@ async function apiUpload(req, res, u, url) {
 // ---------- страницы
 function osIndex() {
   let html = fs.readFileSync(path.join(CFG.assets, 'os', 'index.html'), 'utf8');
-  html = html.replace('<head>', `<head>\n  <base href="/assets/os/">\n  <script src="/web/bridge.js"></script>`)
+  html = html.replace('<head>', `<head>\n  <base href="/assets/os/">\n  <script src="/web/bridge.js"></script>\n  <script src="/web/localfs.js"></script>`)
     .replace(/<title>[^<]*<\/title>/, `<title>${CFG.siteName}</title>`)
-    .replace('</head>', '  <link rel="stylesheet" href="/web/mac.css">\n  <link rel="icon" href="/web/icon.svg">\n</head>')
-    .replace('<script src="js/main.js"></script>', '<script src="/web/web-shell.js"></script>\n  <script src="js/main.js"></script>');
+    .replace('</head>', '  <link rel="stylesheet" href="/web/monomach.css">\n  <link rel="icon" href="/web/icon.svg">\n</head>')
+    .replace('<script src="js/main.js"></script>', '<script src="/web/webdisks.js"></script>\n  <script src="/web/web-shell.js"></script>\n  <script src="js/main.js"></script>');
   return html;
 }
 
@@ -361,6 +361,7 @@ async function route(req, res) {
   const M = req.method;
 
   if (p === '/healthz') return send(res, 200, 'ok');
+  if (p === '/sw.js') return sendFile(req, res, path.join(CFG.pub, 'sw.js'), { cache: 'no-cache' });
   if (p.startsWith('/web/')) return sendFile(req, res, path.join(CFG.pub, path.posix.normalize('/' + p.slice(5))), { cache: 'no-cache' });
   if (p.startsWith('/assets/')) return serveAsset(req, res, p.slice(8));
   if (p === '/favicon.ico') return sendFile(req, res, path.join(CFG.pub, 'icon.svg'), { type: 'image/svg+xml' });

@@ -22,7 +22,7 @@ const Store = (() => {
     showSeconds: false,
     pinned: ['explorer', 'browser', 'lexicon', 'tabs', 'photos', 'settings'],
     // Пуск
-    startPinned: ['explorer', 'browser', 'lexicon', 'tabs', 'photostore', 'winarch', 'fxplayer', 'reminders', 'things', 'pdf', 'photos', 'settings', 'notepad', 'calculator', 'paint', 'terminal', 'music', 'clock', 'calendar', 'weather', 'taskmgr', 'camera', 'assistant', 'minesweeper', 'game2048', 'doom'],
+    startPinned: ['explorer', 'browser', 'lexicon', 'tabs', 'photostore', 'winarch', 'fxplayer', 'reminders', 'things', 'timematrix', 'pdf', 'photos', 'settings', 'notepad', 'calculator', 'paint', 'terminal', 'music', 'clock', 'calendar', 'weather', 'taskmgr', 'camera', 'assistant', 'minesweeper', 'game2048', 'doom'],
     showRecommended: true,
     // Рабочий стол
     desktopIcons: true,
@@ -84,8 +84,8 @@ const Store = (() => {
     for (const k of ['pinned', 'startPinned', 'startupApps']) data[k] = ren(data[k]);
     data.defaultApps = { ...defaults.defaultApps, ...(data.defaultApps || {}) };
     if (data.defaultApps.psd === 'prism') data.defaultApps.psd = 'photostore';
-    if (Array.isArray(data.startPinned)) for (const id of ['winarch', 'fxplayer', 'reminders', 'things', 'lines']) if (!data.startPinned.includes(id) && !(data.migrated || []).includes(id)) data.startPinned.push(id);
-    data.migrated = [...new Set([...(data.migrated || []), 'winarch', 'fxplayer', 'reminders', 'things', 'lines'])];
+    if (Array.isArray(data.startPinned)) for (const id of ['winarch', 'fxplayer', 'reminders', 'things', 'lines', 'timematrix']) if (!data.startPinned.includes(id) && !(data.migrated || []).includes(id)) data.startPinned.push(id);
+    data.migrated = [...new Set([...(data.migrated || []), 'winarch', 'fxplayer', 'reminders', 'things', 'lines', 'timematrix'])];
   })();
 
   const em = new Emitter();

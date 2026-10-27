@@ -253,6 +253,8 @@ const Desktop = (() => {
         { label: 'Напоминания — Все', icon: 'app:reminders', action: () => DeskWidgets.add('reminders', { list: 'all' }) },
         { label: 'Дела — Сегодня', icon: 'app:things', action: () => DeskWidgets.add('things', { list: 'today' }) },
         { label: 'Дела — Входящие', icon: 'app:things', action: () => DeskWidgets.add('things', { list: 'inbox' }) },
+        { label: 'Матрица времени', icon: 'app:timematrix', action: () => DeskWidgets.add('timematrix', { list: 'all' }) },
+        { label: 'Матрица времени — Сделать сейчас', icon: 'app:timematrix', action: () => DeskWidgets.add('timematrix', { list: '1' }) },
       ] },
       { label: 'Загрузить файлы с компьютера…', icon: 'upload', action: () => FileOps.uploadInto(FS.P.desktop) },
       { label: 'Открыть в терминале', icon: 'terminal', action: () => Apps.launch('terminal', { cwd: FS.P.desktop }) },

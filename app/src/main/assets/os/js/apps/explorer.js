@@ -386,10 +386,19 @@ function openExplorer(args = {}) {
     FS.drives().forEach(d => {
       const pct = d.used / d.total * 100;
       const c = h(`<div class="ex-drive">${Icons.get(d.letter === 'C:' ? 'drive-win' : d.icon ? d.icon : d.device ? (d.label.startsWith('SD') ? 'drive-sd' : 'drive-phone') : 'drive', 48)}<div class="dinfo"><b>${esc(d.label)} (${d.letter})</b><div class="dbar"><i style="width:${pct.toFixed(1)}%;${pct > 90 ? 'background:var(--danger)' : ''}"></i></div><span>${fmtBytes(d.free)} свободно из ${fmtBytes(d.total)}</span></div></div>`);
+      if (d.unknown || !isFinite(pct)) { $('.dbar', c).remove(); $('span', c).textContent = typeof WebDisks !== 'undefined' ? WebDisks.kindName(d.kind) : ''; }
       c.onclick = () => go(d.letter);
-      c.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); UI.menu(e.clientX, e.clientY, [{ label: 'Открыть', icon: 'folder-open', action: () => go(d.letter) }, { label: 'Свойства', icon: 'info', action: () => UI.alert(`${d.label} (${d.letter})`, `${d.device ? 'Память устройства Android' : 'Файловая система: NTFS'}\nЗанято: ${fmtBytes(d.used)}\nСвободно: ${fmtBytes(d.free)}\nЁмкость: ${fmtBytes(d.total)}`) }]); };
+      const web = typeof WebDisks !== 'undefined' && WebDisks.removable(d);
+      c.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); UI.menu(e.clientX, e.clientY, [{ label: 'Открыть', icon: 'folder-open', action: () => go(d.letter) },
+        ...(web ? [{ label: 'Переименовать диск', icon: 'rename', action: () => WebDisks.rename(d) }, { label: 'Отключить диск', icon: 'close', action: () => WebDisks.remove(d) }] : []),
+        { label: 'Свойства', icon: 'info', action: () => UI.alert(`${d.label} (${d.letter})`, `${web || FX.web ? (typeof WebDisks !== 'undefined' ? WebDisks.kindName(d.kind) : '') : d.device ? 'Память устройства Android' : 'Файловая система: NTFS'}\nЗанято: ${!d.unknown ? fmtBytes(d.used) : '—'}\nСвободно: ${!d.unknown ? fmtBytes(d.free) : '—'}\nЁмкость: ${!d.unknown ? fmtBytes(d.total) : 'неизвестно'}`) }]); };
       dbox.append(c);
     });
+    if (typeof WebDisks !== 'undefined') {
+      const add = h(`<div class="ex-drive ex-drive-add">${Icons.get('drive-cloud', 48)}<div class="dinfo"><b>Подключить диск</b><span>Яндекс Диск, Облако Mail.ru, Google Диск, WebDAV, папка компьютера</span></div></div>`);
+      add.onclick = () => WebDisks.add();
+      dbox.append(add);
+    }
   }
 
   function renderPreview() {

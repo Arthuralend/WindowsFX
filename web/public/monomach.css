@@ -1,0 +1,20 @@
+/* Monomach: стили сайта поверх рабочего стола WindowsFX */
+
+/* окно «Подключить диск» */
+.wd-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 4px; }
+@media (max-width: 640px) { .wd-pick { grid-template-columns: 1fr; } }
+.wd-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.wd-card:hover { background: var(--surface-3); border-color: var(--accent); }
+.wd-card span { display: grid; gap: 2px; }
+.wd-card small { color: var(--fg-2); font-size: 12px; line-height: 1.3; }
+.wd-card.off { opacity: .55; cursor: default; }
+.wd-card.off:hover { background: var(--surface-2); border-color: var(--line); }
+.wd-form { display: grid; gap: 10px; min-width: min(460px, 80vw); }
+.wd-form label { display: grid; gap: 4px; font-size: 13px; }
+.wd-form label .muted { display: inline; }
+.wd-help, .wd-note { font-size: 12.5px; line-height: 1.45; color: var(--fg-2); background: var(--surface-2); border-radius: 8px; padding: 9px 11px; }
+.wd-note { background: none; padding: 0 2px; }
+.wd-help a { color: var(--accent); }
+.ex-drive-add { border-style: dashed !important; opacity: .9; }
+.ex-drive-add:hover { opacity: 1; }
+.dlg.wide:has(.wd-pick) { width: min(620px, 94vw); }

@@ -36,7 +36,7 @@ class UserSpace {
   /** Все корни: личный диск + облака */
   mounts() {
     const list = [{ key: 'disk', path: '/disk', label: 'Мой диск', backend: this.disk, local: true }];
-    if (this.ctx.clouds) for (const m of this.ctx.clouds.forUser(this.user.id)) list.push({ key: 'cloud', path: '/cloud/' + m.id, label: m.label, backend: m.backend, kind: m.kind });
+    if (this.ctx.clouds) for (const m of this.ctx.clouds.forUser(this.user.id)) list.push({ key: 'cloud', path: '/cloud/' + m.id, label: m.label, backend: m.backend, kind: m.kind, letter: m.letter });
     return list;
   }
   resolve(np) {
@@ -52,13 +52,23 @@ class UserSpace {
     for (const m of this.mounts()) {
       if (m.local) {
         const { used, quota } = await this.quota.get();
-        out.push({ key: m.key, path: m.path, label: m.label, total: quota, free: Math.max(0, quota - used) });
+        out.push({ key: m.key, kind: 'disk', path: m.path, label: m.label, letter: 'D:', total: quota, free: Math.max(0, quota - used) });
       } else {
-        const sp = await (m.backend.space ? m.backend.space().catch(() => null) : null);
-        out.push({ key: m.key, path: m.path, label: m.label, kind: m.kind, total: sp ? sp.total : 0, free: sp ? sp.free : 0 });
+        const sp = await this.space(m);
+        out.push({ key: m.key, path: m.path, label: m.label, kind: m.kind, letter: m.letter, total: sp ? sp.total : 0, free: sp ? sp.free : 0 });
       }
     }
     return out;
+  }
+
+  /** Свободное место облака: кэш на минуту, не дольше 3 с ожидания (иначе — «неизвестно») */
+  async space(m) {
+    this.spCache = this.spCache || new Map();
+    const c = this.spCache.get(m.path);
+    if (c && Date.now() - c.at < 60e3) return c.v;
+    if (!m.backend.space) return null;
+    const p = m.backend.space().catch(() => null).then(v => { this.spCache.set(m.path, { v, at: Date.now() }); return v; });
+    return Promise.race([p, new Promise(r => setTimeout(() => r(c ? c.v : null), 3000))]);
   }
 
   // ---- копирование между разными дисками (например, Мой диск → Яндекс Диск)

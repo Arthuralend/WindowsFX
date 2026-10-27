@@ -212,7 +212,10 @@ const FS = (() => {
       const letters = ['D:', 'E:', 'F:', 'G:', 'H:', 'I:', 'J:', 'K:', 'L:', 'M:', 'N:', 'O:', 'P:'];
       roots.forEach((r, i) => {
         if (i >= letters.length) return;
-        DEV[letters[i]] = { root: r.path, label: r.label || (i === 0 ? 'Внутренняя память' : (roots.length > 2 ? 'SD-карта ' + i : 'SD-карта')), total: r.total, free: r.free, kind: r.kind || r.key };
+        // сайт: у каждого диска своя постоянная буква (D: — личный диск, G:… — облака, L:… — папки компьютера)
+        const L = r.letter && !DEV[r.letter] && !['A:', 'B:', 'C:'].includes(r.letter) ? r.letter : letters.find(l => !DEV[l]);
+        if (!L) return;
+        DEV[L] = { root: r.path, label: r.label || (i === 0 ? 'Внутренняя память' : (roots.length > 2 ? 'SD-карта ' + i : 'SD-карта')), total: r.total, free: r.free, kind: r.kind || r.key };
       });
     } catch (e) { console.warn('device roots', e); }
   }
@@ -795,7 +798,7 @@ const FS = (() => {
       const used = d.base + nodeSize(root[letter]);
       return { letter, label: d.label, total: d.total, used, free: d.total - used, path: letter };
     });
-    const dev = Object.entries(DEV).map(([letter, d]) => ({ letter, label: d.label, total: d.total || 1, used: (d.total || 0) - (d.free || 0), free: d.free || 0, path: letter, device: true, kind: d.kind, icon: DRIVE_ICONS[d.kind] }));
+    const dev = Object.entries(DEV).map(([letter, d]) => ({ letter, label: d.label, total: d.total || 1, used: (d.total || 0) - (d.free || 0), free: d.free || 0, path: letter, device: true, kind: d.kind, icon: DRIVE_ICONS[d.kind], unknown: !d.total }));
     return [...virt, ...dev];
   }
 
@@ -809,6 +812,13 @@ const FS = (() => {
     copy, move, unique, size: p => nodeSize(get(p)), nodeSize, countItems, walk, search, typeOf, parseLnk, drives,
     freeze() { frozen = true; },
     isDevice: isDev, toNative, fromNative, devices: () => DEV,
+    /** Диски подключены или отключены (облака, папки компьютера): перечитать список */
+    remount() {
+      for (const k of Object.keys(DEV)) delete DEV[k];
+      initDev();
+      devInvalidateAll();
+      em.emit('change', { device: true, drives: true });
+    },
     refreshDevice() { devInvalidateAll(); if (Object.keys(DEV).length && FX.tryCall('hasAccess')) ensureDevFolders(); em.emit('change', { device: true }); },
     /** Миниатюра изображения/видео для значков */
     thumb(path, node, size = 128) {

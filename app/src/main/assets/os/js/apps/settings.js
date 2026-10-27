@@ -102,7 +102,7 @@ function openSettings(args = {}) {
 
   function renderMe() {
     const me = $('.st-me', b);
-    me.innerHTML = `${StartMenu.avatarHTML(64)}<div><b>${esc(Store.get('userName'))}</b><span>Локальная учётная запись</span></div>`;
+    me.innerHTML = `${StartMenu.avatarHTML(64)}<div><b>${esc(Store.get('userName'))}</b><span>${FX.web ? 'Учётная запись ' + esc(FXWeb.site) : 'Локальная учётная запись'}</span></div>`;
     me.onclick = () => go('accounts');
   }
 
@@ -572,7 +572,7 @@ function openSettings(args = {}) {
 
     accounts() {
       pg.append(header('Учётные записи'));
-      const top = h(`<div class="st-hero" style="grid-template-columns:auto 1fr">${StartMenu.avatarHTML(96)}<div><b style="font-size:1.4rem">${esc(Store.get('userName'))}</b><div class="muted">Локальная учётная запись · Администратор</div></div></div>`);
+      const top = h(`<div class="st-hero" style="grid-template-columns:auto 1fr">${StartMenu.avatarHTML(96)}<div><b style="font-size:1.4rem">${esc(Store.get('userName'))}</b><div class="muted">${FX.web ? 'Учётная запись ' + esc(FXWeb.site) + ' · ' + esc(FXWeb.login) : 'Локальная учётная запись · Администратор'}</div></div></div>`);
       const s = sec('Ваши данные');
       const nameIn = h(`<input class="input" style="width:240px" maxlength="40" value="${esc(Store.get('userName'))}">`);
       nameIn.onchange = () => { const v = nameIn.value.trim(); if (v) { Store.set('userName', v); renderMe(); go('accounts'); } };

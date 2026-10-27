@@ -6,6 +6,7 @@ const DeskWidgets = (() => {
   const TYPES = {
     reminders: { name: 'Напоминания', icon: 'reminders', app: 'reminders', render: (el, o) => Reminders.widget(el, o) },
     things: { name: 'Дела', icon: 'things', app: 'things', render: (el, o) => Things.widget(el, o) },
+    timematrix: { name: 'Матрица времени', icon: 'timematrix', app: 'timematrix', render: (el, o) => TimeMatrix.widget(el, o), w: 420, h: 360 },
   };
   let layer = null;
   const live = new Map(); // id -> { el, inst }
@@ -107,7 +108,8 @@ const DeskWidgets = (() => {
   function add(type, opts = {}) {
     const l = list();
     const n = l.length;
-    const cfg = { id: uid('dw'), type, opts, w: 300, h: 330, x: innerWidth - 324 - (n % 3) * 316, y: 24 + Math.floor(n / 3) % 2 * 350 };
+    const T = TYPES[type] || {};
+    const cfg = { id: uid('dw'), type, opts, w: T.w || 300, h: T.h || 330, x: innerWidth - 324 - (n % 3) * 316, y: 24 + Math.floor(n / 3) % 2 * 350 };
     l.push(cfg); saveList(l);
     render();
     UI.notify({ title: 'Виджет закреплён на рабочем столе', body: 'Перетащите его за заголовок', app: TYPES[type].app, transient: true, silent: true });
