@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monomach — администрирование</title>
+<link rel="icon" href="/web/icon.svg">
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --bg: #f4f5f3; --side: #ecefeb; --card: #fff; --text: #1d2321; --muted: #67706c; --line: #dde1dd; --hover: #f0f2ef;
+    --accent: #1f7a72; --accent-ink: #fff; --soft: #e2f0ee; --err: #c0392b; --warn: #b7791f; --ok: #1f7a4d; --chip: #eef1ee;
+    --bar1: #1f7a72; --bar2: #e0a100;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #151817; --side: #1a1e1d; --card: #202524; --text: #e9ecea; --muted: #9aa39f; --line: #323937; --hover: #262c2a;
+    --accent: #4fb3a9; --accent-ink: #0d1f1d; --soft: #1c3431; --err: #ff7b6b; --warn: #e6b54a; --ok: #6fd39b; --chip: #2a302e;
+    --bar1: #4fb3a9; --bar2: #e6b54a; color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #151817; --side: #1a1e1d; --card: #202524; --text: #e9ecea; --muted: #9aa39f; --line: #323937; --hover: #262c2a;
+    --accent: #4fb3a9; --accent-ink: #0d1f1d; --soft: #1c3431; --err: #ff7b6b; --warn: #e6b54a; --ok: #6fd39b; --chip: #2a302e;
+    --bar1: #4fb3a9; --bar2: #e6b54a; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  .btn { font-size: 14px; font-weight: 500; letter-spacing: 0; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: var(--hover); }
+  a.btn { text-decoration: none; color: inherit; display: inline-block; }
+  .btn.pri { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  .btn.danger { color: var(--err); }
+  input, select, textarea { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 7px 10px; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+
+  /* вход */
+  #auth { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+  #auth form { width: 100%; max-width: 360px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 26px; box-shadow: 0 12px 40px rgba(0,0,0,.08); }
+  #auth h1 { font-size: 19px; margin: 12px 0 18px; }
+  #auth label { display: block; font-size: 12.5px; font-weight: 600; margin: 12px 0 5px; }
+  #auth input { width: 100%; padding: 10px 12px; }
+  #auth .btn { width: 100%; margin-top: 18px; padding: 10px; }
+  .err { color: var(--err); font-size: 13px; min-height: 18px; margin-top: 10px; }
+
+  /* каркас */
+  #app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  nav { background: var(--side); border-right: 1px solid var(--line); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; }
+  .logo { display: flex; gap: 10px; align-items: center; padding: 4px 8px 16px; }
+  .logo img { width: 30px; height: 30px; }
+  .logo b { display: block; font-size: 15px; }
+  .logo small { color: var(--muted); font-size: 11.5px; }
+  nav a { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; color: var(--text); text-decoration: none; cursor: pointer; }
+  nav a:hover { background: var(--hover); }
+  nav a.on { background: var(--soft); color: var(--accent); font-weight: 600; }
+  nav svg { width: 17px; height: 17px; flex: none; }
+  nav .sp { flex: 1; }
+  main { padding: 24px 28px 40px; min-width: 0; }
+  h2 { font-size: 22px; margin: 0 0 18px; letter-spacing: -.01em; display: flex; align-items: center; gap: 12px; }
+  h2 .sp { flex: 1; }
+  h3 { font-size: 14px; margin: 0 0 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .stat small { color: var(--muted); display: block; font-size: 12px; }
+  .stat b { font-size: 24px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .row2 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr.click { cursor: pointer; }
+  tr.click:hover td { background: var(--hover); }
+  .tbl { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: auto; }
+  .muted { color: var(--muted); }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 99px; background: var(--chip); font-size: 12px; white-space: nowrap; }
+  .chip.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+  .chip.bad { background: color-mix(in srgb, var(--err) 14%, transparent); color: var(--err); }
+  .chip.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--chip); overflow: hidden; min-width: 80px; margin-top: 4px; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .tools input[type=search] { min-width: 240px; flex: 1; max-width: 360px; }
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 6px; }
+  .chart .col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; min-width: 0; }
+  .chart .bars { display: flex; gap: 2px; align-items: flex-end; height: 100%; width: 100%; justify-content: center; }
+  .chart .bars i { width: 42%; max-width: 14px; background: var(--bar1); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .chart .bars i.r { background: var(--bar2); }
+  .chart small { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; overflow-wrap: anywhere; }
+  /* карточка пользователя */
+  #drawer { position: fixed; inset: 0; background: rgba(0,0,0,.25); display: flex; justify-content: flex-end; z-index: 10; }
+  #drawer > div { width: min(640px, 100%); height: 100%; background: var(--bg); border-left: 1px solid var(--line); overflow: auto; padding: 22px 24px; box-shadow: -20px 0 50px rgba(0,0,0,.15); }
+  #drawer h2 { margin-bottom: 6px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
+  .sect { margin-top: 18px; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; z-index: 20; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+  .form-row { display: grid; grid-template-columns: 220px 1fr; gap: 10px 16px; align-items: center; margin-bottom: 10px; }
+  .menu-btn { display: none; }
+  @media (max-width: 860px) {
+    #app { grid-template-columns: 1fr; }
+    nav { position: fixed; z-index: 15; left: 0; top: 0; width: 240px; transform: translateX(-100%); transition: transform .2s; }
+    nav.open { transform: none; box-shadow: 10px 0 40px rgba(0,0,0,.2); }
+    .menu-btn { display: inline-flex; }
+    main { padding: 16px; }
+    .row2 { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<section id="auth" hidden>
+  <form id="auth-form">
+    <img src="/web/icon.svg" width="40" height="40" alt="">
+    <h1>Администрирование Monomach</h1>
+    <label for="a-login">Логин администратора</label>
+    <input id="a-login" autocomplete="username" required>
+    <label for="a-pass">Пароль</label>
+    <input id="a-pass" type="password" autocomplete="current-password" required>
+    <button class="btn pri" type="submit">Войти</button>
+    <div class="err" id="a-err"></div>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <nav id="nav">
+    <div class="logo"><img src="/web/icon.svg" alt=""><div><b>Monomach</b><small>Администрирование</small></div></div>
+    <a data-v="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 13h8V3H3zM13 21h8V11h-8zM13 3v6h8V3zM3 21h8v-6H3z"/></svg>Обзор</a>
+    <a data-v="users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg>Пользователи</a>
+    <a data-v="events"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Журнал</a>
+    <a data-v="system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Сервер и настройки</a>
+    <div class="sp"></div>
+    <a id="theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>Тема</a>
+    <a id="logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Выйти</a>
+  </nav>
+  <main id="main"></main>
+</div>
+<div id="drawer" hidden><div id="drawer-body"></div></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmtB = n => { n = +n || 0; if (n < 1024) return n + ' Б'; const u = ['КБ', 'МБ', 'ГБ', 'ТБ']; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 3); return (n >= 100 ? Math.round(n) : Math.round(n * 10) / 10).toLocaleString('ru') + ' ' + u[i]; };
+  const fmtT = t => t ? new Date(t).toLocaleString('ru', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+  const ago = t => {
+    if (!t) return '—';
+    const s = (Date.now() - t) / 1000;
+    if (s < 60) return 'только что';
+    if (s < 3600) return Math.floor(s / 60) + ' мин назад';
+    if (s < 86400) return Math.floor(s / 3600) + ' ч назад';
+    if (s < 7 * 86400) return Math.floor(s / 86400) + ' дн назад';
+    return fmtT(t);
+  };
+  const dur = ms => { const h = Math.floor(ms / 3600e3), d = Math.floor(h / 24); return d ? d + ' дн ' + (h % 24) + ' ч' : h + ' ч ' + Math.floor(ms / 60e3) % 60 + ' мин'; };
+  const TYPES = {
+    register: ['Регистрация', 'ok'], login: ['Вход', 'ok'], logout: ['Выход', ''], login_fail: ['Неудачный вход', 'bad'], login_blocked: ['Вход заблокированного', 'bad'],
+    password_change: ['Смена пароля', 'warn'], admin_login: ['Вход администратора', ''], admin_login_fail: ['Неудачный вход в панель', 'bad'],
+    admin_block: ['Заблокирован', 'bad'], admin_unblock: ['Разблокирован', 'ok'], admin_password: ['Пароль сброшен', 'warn'], admin_quota: ['Изменён лимит', ''],
+    admin_logout_user: ['Сеансы завершены', ''], admin_delete: ['Удалён', 'bad'], admin_settings: ['Настройки сервера', ''],
+    cloud_add: ['Подключён диск', ''], cloud_remove: ['Отключён диск', ''], rdp_connect: ['Удалённый рабочий стол', ''],
+  };
+  const typeChip = t => { const x = TYPES[t] || [t, '']; return `<span class="chip ${x[1]}">${esc(x[0])}</span>`; };
+  const CLOUD = { webdav: 'WebDAV', yandex: 'Яндекс Диск', mailru: 'Облако Mail.ru', gdrive: 'Google Диск' };
+
+  async function api(p, opts = {}) {
+    const r = await fetch('/api/admin/' + p, { credentials: 'same-origin', headers: opts.body ? { 'Content-Type': 'application/json' } : {}, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined });
+    if (r.status === 401) { showAuth(); throw new Error('auth'); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Ошибка ' + r.status);
+    return j;
+  }
+  function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.append(d); setTimeout(() => d.remove(), 3200); }
+
+  // тема
+  const root = document.documentElement;
+  try { const t = localStorage.getItem('mm.theme'); if (t) root.dataset.theme = t; } catch {}
+  $('#theme').onclick = () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('mm.theme', root.dataset.theme); } catch {}
+  };
+
+  // вход
+  function showAuth() { $('#app').hidden = true; $('#auth').hidden = false; $('#a-login').focus(); }
+  $('#auth-form').onsubmit = async e => {
+    e.preventDefault();
+    $('#a-err').textContent = '';
+    try {
+      await api('login', { method: 'POST', body: { login: $('#a-login').value.trim(), password: $('#a-pass').value } });
+      $('#a-pass').value = '';
+      start();
+    } catch (er) { if (er.message !== 'auth') $('#a-err').textContent = er.message; else $('#a-err').textContent = 'Неверный логин или пароль.'; }
+  };
+  $('#logout').onclick = async () => { await api('logout', { method: 'POST' }).catch(() => {}); showAuth(); };
+
+  // навигация
+  const views = { overview, users, events, system };
+  let cur = 'overview';
+  document.querySelectorAll('nav a[data-v]').forEach(a => a.onclick = () => go(a.dataset.v));
+  function go(v, arg) {
+    cur = v;
+    document.querySelectorAll('nav a[data-v]').forEach(a => a.classList.toggle('on', a.dataset.v === v));
+    $('#nav').classList.remove('open');
+    location.hash = v;
+    views[v](arg).catch(e => { if (e.message !== 'auth') $('#main').innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+  }
+  const head = (t, extra = '') => `<h2><button class="btn menu-btn" onclick="document.getElementById('nav').classList.add('open')">☰</button>${esc(t)}<span class="sp"></span>${extra}</h2>`;
+
+  async function start() {
+    try { await api('overview'); } catch { return; }
+    $('#auth').hidden = true; $('#app').hidden = false;
+    go((location.hash || '#overview').slice(1) in views ? location.hash.slice(1) || 'overview' : 'overview');
+  }
+
+  // ---------- обзор
+  async function overview() {
+    const o = await api('overview');
+    const max = Math.max(1, ...o.days.map(d => Math.max(d.logins, d.registrations)));
+    const chart = o.days.map(d => {
+      const dd = new Date(d.day);
+      return `<div class="col" title="${dd.toLocaleDateString('ru')}: входов ${d.logins}, пользователей ${d.users}, регистраций ${d.registrations}">
+        <div class="bars"><i style="height:${d.logins / max * 100}%"></i><i class="r" style="height:${d.registrations / max * 100}%"></i></div>
+        <small>${dd.getDate()}.${String(dd.getMonth() + 1).padStart(2, '0')}</small></div>`;
+    }).join('');
+    const recent = await api('events?limit=12');
+    $('#main').innerHTML = head('Обзор', '<button class="btn" id="refresh">Обновить</button>') + `
+      <div class="grid">
+        <div class="card stat"><small>Пользователей</small><b>${o.users}</b>${o.blocked ? `<span>заблок. ${o.blocked}</span>` : ''}</div>
+        <div class="card stat"><small>Сейчас в сети</small><b>${o.online}</b></div>
+        <div class="card stat"><small>Активны за сутки / неделю</small><b>${o.active24}</b><span>/ ${o.active7}</span></div>
+        <div class="card stat"><small>Регистраций за сутки / неделю</small><b>${o.reg24}</b><span>/ ${o.reg7}</span></div>
+        <div class="card stat"><small>Входов за сутки</small><b>${o.logins24}</b></div>
+        <div class="card stat"><small>Неудачных попыток за сутки</small><b style="${o.fails24 ? 'color:var(--err)' : ''}">${o.fails24}</b></div>
+        <div class="card stat"><small>Занято на дисках пользователей</small><b>${fmtB(o.storageUsed)}</b><span>из ${fmtB(o.storageQuota)}</span></div>
+        <div class="card stat"><small>Подключено облачных дисков</small><b>${o.mounts}</b></div>
+      </div>
+      <div class="row2">
+        <div class="card"><h3>Посещаемость за 14 дней</h3><div class="chart" role="img" aria-label="Входы и регистрации по дням">${chart}</div>
+          <div class="legend"><span><i style="background:var(--bar1)"></i>Входы</span><span><i style="background:var(--bar2)"></i>Регистрации</span></div></div>
+        <div class="card"><h3>Подозрительные адреса (неделя)</h3>${o.topIps.length ? `<table>${o.topIps.map(r => `<tr><td>${esc(r.ip)}</td><td class="muted">${r.n} неудачных</td></tr>`).join('')}</table>` : '<p class="muted">Неудачных попыток входа нет.</p>'}</div>
+      </div>
+      <div class="sect"><h3>Последние события</h3><div class="tbl">${evTable(recent)}</div></div>`;
+    $('#refresh').onclick = () => go('overview');
+    bindEv();
+  }
+
+  function evTable(list) {
+    if (!list.length) return '<p class="muted" style="padding:12px">Событий нет.</p>';
+    return `<table><thead><tr><th>Время</th><th>Событие</th><th>Пользователь</th><th>IP</th><th class="hide-sm">Браузер</th><th class="hide-sm">Подробности</th></tr></thead><tbody>${list.map(e => `
+      <tr${e.user_id ? ` class="click" data-u="${e.user_id}"` : ''}><td title="${fmtT(e.ts)}">${fmtT(e.ts)}</td><td>${typeChip(e.type)}</td><td>${esc(e.login || '—')}</td><td>${esc(e.ip || '')}</td><td class="hide-sm muted">${esc(e.ua)}</td><td class="hide-sm muted">${esc(e.detail || '')}</td></tr>`).join('')}</tbody></table>`;
+  }
+  function bindEv(el = document) { el.querySelectorAll('tr[data-u]').forEach(tr => tr.onclick = () => openUser(+tr.dataset.u)); }
+
+  // ---------- пользователи
+  let uq = '', usort = 'seen';
+  async function users() {
+    const list = await api(`users?q=${encodeURIComponent(uq)}&sort=${usort}`);
+    const now = Date.now();
+    $('#main').innerHTML = head('Пользователи', `<span class="muted" style="font-size:13px;font-weight:400">${list.length}</span>`) + `
+      <div class="tools"><input type="search" id="uq" placeholder="Поиск по имени или IP" value="${esc(uq)}">
+        <select id="usort"><option value="seen">Сначала активные</option><option value="created">Сначала новые</option><option value="login">По имени</option><option value="used">По занятому месту</option></select></div>
+      <div class="tbl"><table><thead><tr><th>Имя</th><th>Последняя активность</th><th class="hide-sm">Зарегистрирован</th><th class="hide-sm">Входов</th><th>Диск</th><th class="hide-sm">Последний IP / браузер</th></tr></thead><tbody>
+      ${list.map(u => `<tr class="click" data-u="${u.id}">
+        <td><b>${esc(u.login)}</b> ${u.blocked ? '<span class="chip bad">заблокирован</span>' : ''}${u.mounts.length ? `<div class="muted" style="font-size:12px">${u.mounts.map(m => CLOUD[m] || m).join(', ')}</div>` : ''}</td>
+        <td>${u.last_seen && now - u.last_seen < 5 * 60e3 ? '<span class="dot"></span>в сети' : ago(u.last_seen)}</td>
+        <td class="hide-sm">${fmtT(u.created)}</td><td class="hide-sm">${u.logins}</td>
+        <td>${fmtB(u.used)} <span class="muted">из ${fmtB(u.quota)}</span><div class="bar"><i style="width:${Math.min(100, u.used / u.quota * 100)}%"></i></div></td>
+        <td class="hide-sm">${esc(u.last_ip || '')}<div class="muted" style="font-size:12px">${esc(u.last_ua)}</div></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Никого не найдено.</td></tr>'}
+      </tbody></table></div>`;
+    $('#usort').value = usort;
+    let t;
+    $('#uq').oninput = e => { clearTimeout(t); t = setTimeout(() => { uq = e.target.value; users().then(() => { const i = $('#uq'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }); }, 300); };
+    $('#usort').onchange = e => { usort = e.target.value; users(); };
+    bindEv();
+  }
+
+  async function openUser(id) {
+    const u = await api('users/' + id);
+    const D = $('#drawer'), B = $('#drawer-body');
+    D.hidden = false;
+    D.onclick = e => { if (e.target === D) close(); };
+    const close = () => { D.hidden = true; if (cur === 'users') users(); };
+    B.innerHTML = `
+      <h2>${esc(u.login)} ${u.blocked ? '<span class="chip bad">заблокирован</span>' : ''}<span class="sp"></span><button class="btn" id="x">Закрыть</button></h2>
+      <div class="muted">Зарегистрирован ${fmtT(u.created)} · входов: ${u.logins}</div>
+      <div class="actions">
+        ${u.blocked ? '<button class="btn" data-a="unblock">Разблокировать</button>' : '<button class="btn danger" data-a="block">Заблокировать</button>'}
+        <button class="btn" data-a="password">Сбросить пароль</button>
+        <button class="btn" data-a="quota">Изменить лимит диска</button>
+        <button class="btn" data-a="logout">Завершить все сеансы</button>
+        <button class="btn danger" data-a="delete">Удалить</button>
+      </div>
+      <div class="card"><dl>
+        <dt>Последняя активность</dt><dd>${ago(u.last_seen)}${u.last_seen ? ` (${fmtT(u.last_seen)})` : ''}</dd>
+        <dt>Последний вход</dt><dd>${fmtT(u.last_login)}</dd>
+        <dt>Последний IP</dt><dd>${esc(u.last_ip || '—')}</dd>
+        <dt>Браузер и система</dt><dd>${esc(u.last_ua)}</dd>
+        <dt>Диск</dt><dd>${fmtB(u.used)} из ${fmtB(u.quota)}${u.files ? ` · файлов: ${u.files.files}, папок: ${u.files.dirs}` : ''}<div class="bar"><i style="width:${Math.min(100, u.used / u.quota * 100)}%"></i></div></dd>
+        <dt>Профиль (настройки)</dt><dd>${u.profile ? fmtB(u.profile.size) + ', сохранён ' + ago(u.profile.updated) : '—'}</dd>
+        <dt>Облачные диски</dt><dd>${u.mounts.length ? u.mounts.map(m => `${esc(CLOUD[m.kind] || m.kind)}: ${esc(m.label)}${m.username ? ' (' + esc(m.username) + ')' : ''}`).join('<br>') : 'не подключены'}</dd>
+        <dt>Заметка</dt><dd><textarea id="note" rows="2" style="width:100%" placeholder="Видна только администратору">${esc(u.note)}</textarea></dd>
+      </dl></div>
+      <div class="sect"><h3>Открытые сеансы (${u.sessions.length})</h3><div class="tbl">${u.sessions.length ? `<table><thead><tr><th>Начат</th><th>Активность</th><th>IP</th><th>Браузер</th></tr></thead><tbody>${u.sessions.map(s => `<tr><td>${fmtT(s.created)}</td><td>${ago(s.last_seen)}<div class="muted" style="font-size:12px">длительность ${dur(s.last_seen - s.created)}</div></td><td>${esc(s.ip)}</td><td>${esc(s.ua)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted" style="padding:12px">Нет активных сеансов.</p>'}</div></div>
+      <div class="sect"><h3>Адреса входа</h3><div class="tbl">${u.ips.length ? `<table>${u.ips.map(r => `<tr><td>${esc(r.ip)}</td><td class="muted">${r.n} вход(ов), последний ${fmtT(r.last)}</td></tr>`).join('')}</table>` : '<p class="muted" style="padding:12px">—</p>'}</div></div>
+      <div class="sect"><h3>История</h3><div class="tbl">${evTable(u.events)}</div></div>`;
+    $('#x', B).onclick = close;
+    let nt;
+    $('#note', B).oninput = e => { clearTimeout(nt); nt = setTimeout(() => api('users/' + id, { method: 'POST', body: { action: 'note', note: e.target.value } }).then(() => toast('Заметка сохранена')), 600); };
+    B.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
+      const a = b.dataset.a, body = { action: a };
+      if (a === 'block' && !confirm(`Заблокировать ${u.login}? Все его сеансы будут завершены.`)) return;
+      if (a === 'password') {
+        const p = prompt('Новый пароль (не короче 8 символов). Оставьте пустым — будет создан случайный.', '');
+        if (p === null) return;
+        if (p && p.length < 8) return alert('Пароль слишком короткий.');
+        body.password = p;
+      }
+      if (a === 'quota') {
+        const mb = prompt('Лимит диска в мегабайтах (1024 = 1 ГБ):', Math.round(u.quota / 1048576));
+        if (!mb) return;
+        body.mb = +mb;
+      }
+      if (a === 'delete') {
+        const c = prompt(`Удаление необратимо: учётная запись, файлы и настройки ${u.login} будут стёрты.\nВведите имя пользователя для подтверждения:`);
+        if (c === null) return;
+        body.confirm = c;
+      }
+      try {
+        const r = await api('users/' + id, { method: 'POST', body });
+        if (a === 'password') alert(`Новый пароль для ${u.login}:\n\n${r.password}\n\nПередайте его пользователю.`);
+        if (a === 'delete') { toast('Пользователь удалён'); close(); return; }
+        toast('Готово');
+        openUser(id);
+      } catch (e) { alert(e.message); }
+    });
+    bindEv(B);
+  }
+
+  // ---------- журнал
+  let eq = '', etype = '';
+  async function events() {
+    const qs = () => `q=${encodeURIComponent(eq)}&type=${encodeURIComponent(etype)}`;
+    let list = await api(`events?limit=100&${qs()}`);
+    $('#main').innerHTML = head('Журнал', `<a class="btn" id="csv" href="/api/admin/events.csv?${qs()}">Скачать CSV</a>`) + `
+      <div class="tools"><input type="search" id="eq" placeholder="Имя, IP или подробности" value="${esc(eq)}">
+        <select id="etype"><option value="">Все события</option><option value="login,logout,register">Входы, выходы, регистрации</option><option value="login_fail,login_blocked,admin_login_fail">Неудачные попытки</option><option value="register">Регистрации</option><option value="password_change,admin_password">Пароли</option><option value="cloud_add,cloud_remove">Облачные диски</option><option value="admin_login,admin_block,admin_unblock,admin_password,admin_quota,admin_logout_user,admin_delete,admin_settings">Действия администратора</option></select></div>
+      <div class="tbl" id="evt">${evTable(list)}</div>
+      <p style="text-align:center"><button class="btn" id="more"${list.length < 100 ? ' hidden' : ''}>Показать ещё</button></p>`;
+    $('#etype').value = etype;
+    let t;
+    $('#eq').oninput = e => { clearTimeout(t); t = setTimeout(() => { eq = e.target.value; events().then(() => { const i = $('#eq'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }); }, 350); };
+    $('#etype').onchange = e => { etype = e.target.value; events(); };
+    $('#more').onclick = async () => {
+      const more = await api(`events?limit=100&before=${list[list.length - 1].id}&${qs()}`);
+      list = list.concat(more);
+      $('#evt').innerHTML = evTable(list);
+      bindEv($('#evt'));
+      if (more.length < 100) $('#more').hidden = true;
+    };
+    bindEv();
+  }
+
+  // ---------- сервер
+  async function system() {
+    const s = await api('system');
+    const memUsed = s.memTotal - s.memFree;
+    $('#main').innerHTML = head('Сервер и настройки') + `
+      <div class="grid">
+        <div class="card stat"><small>Сервер работает</small><b style="font-size:19px">${dur(s.uptime)}</b></div>
+        <div class="card stat"><small>Нагрузка (1/5/15 мин)</small><b style="font-size:19px">${s.load.map(x => x.toFixed(2)).join(' / ')}</b><span>${s.cpus} ядер</span></div>
+        <div class="card stat"><small>Память</small><b style="font-size:19px">${fmtB(memUsed)}</b><span>из ${fmtB(s.memTotal)}</span><div class="bar"><i style="width:${memUsed / s.memTotal * 100}%"></i></div></div>
+        <div class="card stat"><small>Диск сервера</small>${s.disk ? `<b style="font-size:19px">${fmtB(s.disk.total - s.disk.free)}</b><span>из ${fmtB(s.disk.total)}</span><div class="bar"><i style="width:${(s.disk.total - s.disk.free) / s.disk.total * 100}%"></i></div>` : '<b>—</b>'}</div>
+      </div>
+      <div class="card"><dl>
+        <dt>Версия Monomach</dt><dd>${esc(s.version)}</dd><dt>Node.js</dt><dd>${esc(s.node)}</dd>
+        <dt>Папка данных</dt><dd>${esc(s.dataDir)}</dd><dt>База данных</dt><dd>${fmtB(s.dbSize)}</dd>
+        <dt>Процесс сервера</dt><dd>${fmtB(s.rss)} памяти</dd>
+      </dl></div>
+      <div class="sect card"><h3>Регистрация</h3>
+        <div class="form-row"><label for="reg">Новые пользователи</label><select id="reg"><option value="open">Могут регистрироваться сами</option><option value="closed">Регистрация закрыта</option></select></div>
+        <div class="form-row"><label for="quota">Лимит диска для новых, МБ</label><input id="quota" type="number" min="10" step="1" value="${Math.round(s.settings.defaultQuota / 1048576)}" style="max-width:160px"></div>
+        <button class="btn pri" id="save1">Сохранить</button></div>
+      <div class="sect card"><h3>Учётная запись администратора</h3>
+        <div class="form-row"><label for="alogin">Логин</label><input id="alogin" value="${esc(s.settings.adminLogin)}" autocomplete="username" style="max-width:280px"></div>
+        <div class="form-row"><label for="acur">Текущий пароль</label><input id="acur" type="password" autocomplete="current-password" style="max-width:280px"></div>
+        <div class="form-row"><label for="anew">Новый пароль (от 10 символов)</label><input id="anew" type="password" autocomplete="new-password" style="max-width:280px"></div>
+        <button class="btn pri" id="save2">Сменить пароль</button></div>`;
+    $('#reg').value = s.settings.registration;
+    $('#save1').onclick = async () => { try { await api('settings', { method: 'POST', body: { registration: $('#reg').value, defaultQuotaMb: +$('#quota').value } }); toast('Сохранено'); } catch (e) { alert(e.message); } };
+    $('#save2').onclick = async () => {
+      try { await api('settings', { method: 'POST', body: { newLogin: $('#alogin').value.trim(), currentPassword: $('#acur').value, newPassword: $('#anew').value } }); toast('Пароль администратора изменён'); $('#acur').value = $('#anew').value = ''; }
+      catch (e) { alert(e.message); }
+    };
+  }
+
+  start().catch(() => showAuth());
+  fetch('/api/admin/overview', { credentials: 'same-origin' }).then(r => { if (r.status === 401) showAuth(); });
+})();
+</script>
+</body>
+</html>

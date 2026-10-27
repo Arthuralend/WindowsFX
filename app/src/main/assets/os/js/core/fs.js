@@ -185,10 +185,10 @@ const FS = (() => {
     if (typeof FX === 'undefined' || !FX.available) return;
     try {
       const roots = FX.call('roots') || [];
-      const letters = ['D:', 'E:', 'F:', 'G:'];
+      const letters = ['D:', 'E:', 'F:', 'G:', 'H:', 'I:', 'J:', 'K:', 'L:', 'M:', 'N:', 'O:', 'P:'];
       roots.forEach((r, i) => {
         if (i >= letters.length) return;
-        DEV[letters[i]] = { root: r.path, label: i === 0 ? 'Внутренняя память' : (roots.length > 2 ? 'SD-карта ' + i : 'SD-карта'), total: r.total, free: r.free };
+        DEV[letters[i]] = { root: r.path, label: r.label || (i === 0 ? 'Внутренняя память' : (roots.length > 2 ? 'SD-карта ' + i : 'SD-карта')), total: r.total, free: r.free, kind: r.kind || r.key };
       });
     } catch (e) { console.warn('device roots', e); }
   }

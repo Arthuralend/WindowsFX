@@ -130,7 +130,7 @@ function openBrowser(args = {}) {
   }
 
   function load(t, url) {
-    if (FX.available && /^https?:/i.test(url)) { renderNative(t, url); addHistory(url, t.title); renderTabs(); if (t === cur) syncUI(); return; }
+    if (FX.has('webCreate') && /^https?:/i.test(url)) { renderNative(t, url); addHistory(url, t.title); renderTabs(); if (t === cur) syncUI(); return; }
     t.mode = 'web';
     t.url = url;
     t.view.innerHTML = '';
@@ -379,7 +379,7 @@ function openBrowser(args = {}) {
   $('.br-home', b).onclick = () => navigate(cur, 'about:newtab');
   $('.br-newtab', win.tbExtra).onclick = () => newTab();
   $('.br-ext', b).onclick = () => {
-    if (/^https?:/.test(cur.url)) { if (FX.available) FX.call('launchUrl', cur.url); else window.open(cur.url, '_blank', 'noopener'); }
+    if (/^https?:/.test(cur.url)) { if (FX.has('launchUrl')) FX.call('launchUrl', cur.url); else window.open(cur.url, '_blank', 'noopener'); }
     else UI.alert('Браузер', 'Эту страницу можно открыть только во встроенном браузере.', 'info');
   };
   $('.br-star', b).onclick = async () => {

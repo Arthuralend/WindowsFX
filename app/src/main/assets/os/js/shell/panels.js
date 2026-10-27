@@ -5,9 +5,9 @@
 const QuickSettings = (() => {
   const el = () => document.getElementById('quick-settings');
   const TILES = [
-    { key: 'wifi', label: () => { if (FX.available) { const n = FX.tryCall('network'); return n ? (n.wifi ? (n.ssid || 'Wi-Fi') : n.cellular ? 'Мобильная сеть' : n.online ? 'Интернет' : 'Нет сети') : 'Wi-Fi'; } return Store.get('wifi') ? (navigator.onLine ? 'Wi-Fi' : 'Нет сети') : 'Wi-Fi'; }, icon: () => Store.get('wifi') ? 'wifi' : 'wifi-off', disabled: () => Store.get('airplane'),
-      ...(FX.available ? { get: () => navigator.onLine, set: () => { Shell.close('quick'); FX.call('openSettings', 'internet'); } } : {}) },
-    { key: 'bluetooth', label: () => 'Bluetooth', icon: () => 'bluetooth', ...(FX.available ? { get: () => true, set: () => { Shell.close('quick'); FX.call('openSettings', 'bluetooth'); } } : {}) },
+    { key: 'wifi', label: () => { if (FX.has('network')) { const n = FX.tryCall('network'); return n ? (n.wifi ? (n.ssid || 'Wi-Fi') : n.cellular ? 'Мобильная сеть' : n.online ? 'Интернет' : 'Нет сети') : 'Wi-Fi'; } return Store.get('wifi') ? (navigator.onLine ? 'Wi-Fi' : 'Нет сети') : 'Wi-Fi'; }, icon: () => Store.get('wifi') ? 'wifi' : 'wifi-off', disabled: () => Store.get('airplane'),
+      ...(FX.has('openSettings') ? { get: () => navigator.onLine, set: () => { Shell.close('quick'); FX.call('openSettings', 'internet'); } } : {}) },
+    { key: 'bluetooth', label: () => 'Bluetooth', icon: () => 'bluetooth', ...(FX.has('openSettings') ? { get: () => true, set: () => { Shell.close('quick'); FX.call('openSettings', 'bluetooth'); } } : {}) },
     { key: 'airplane', label: () => 'В самолёте', icon: () => 'airplane' },
     { key: 'batterySaver', label: () => 'Экономия заряда', icon: () => 'leaf' },
     { key: 'nightLight', label: () => 'Ночной свет', icon: () => 'moon' },

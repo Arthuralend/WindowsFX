@@ -12,11 +12,13 @@ const FX = (() => {
     EISDIR: 'Это папка.',
     EINVAL: 'Невозможно переместить папку в саму себя.',
     EIO: 'Не удалось выполнить операцию с файлом.',
+    ENOSPC: 'Недостаточно места на диске.',
+    ENOSYS: 'Эта функция недоступна в браузере.',
   };
 
   /** Синхронный вызов Android. Бросает Error с полем code при ошибке. */
   function call(name, ...args) {
-    if (!N) { const e = new Error('Функция доступна только в приложении WindowsFX для Android.'); e.code = 'ENOSYS'; throw e; }
+    if (!N || typeof N[name] !== 'function') { const e = new Error(N && N.__web ? 'Эта функция недоступна в браузере.' : 'Функция доступна только в приложении WindowsFX для Android.'); e.code = 'ENOSYS'; throw e; }
     const raw = N[name](...args);
     const r = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (r && r.err) { const e = new Error(ERR[r.err] || r.msg || r.err); e.code = r.err; e.detail = r.msg; throw e; }
@@ -61,6 +63,10 @@ const FX = (() => {
 
   return {
     available: !!N,
+    /** Рабочий стол открыт на сайте (Monomach), а не в приложении Android */
+    web: !!(N && N.__web),
+    /** Есть ли у хоста функция */
+    has: name => !!(N && typeof N[name] === 'function'),
     call, tryCall,
     on: (e, f) => em.on(e, f),
     emit: (e, d) => em.emit(e, d),

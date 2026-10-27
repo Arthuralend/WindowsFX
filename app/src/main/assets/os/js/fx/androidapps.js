@@ -17,7 +17,7 @@ const AndroidApps = (() => {
   }
 
   function load() {
-    if (!FX.available) return;
+    if (!FX.has('apps')) return;
     const list = FX.tryCall('apps') || [];
     const next = new Set();
     list.forEach(a => {

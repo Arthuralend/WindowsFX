@@ -125,7 +125,7 @@ const Kbd = (() => {
       if (l && list().includes(l)) set(l, true);
     }
   }
-  if (FX.available) {
+  if (FX.has('imeLocale')) {
     setInterval(() => { if (document.hasFocus()) pollIme(); }, 1500);
     FX.on('resume', pollIme);
     FX.on('ime', d => { lastIme = ''; pollIme(); });
