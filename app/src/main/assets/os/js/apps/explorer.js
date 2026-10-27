@@ -163,7 +163,7 @@ function openExplorer(args = {}) {
     QUICK.forEach(([n, p, ic]) => add(n, p, ic));
     side.append(h('<div class="ex-side-sep"></div>'));
     add('Этот компьютер', 'thispc://', 'thispc');
-    FS.drives().forEach(d => add(`${d.label} (${d.letter})`, d.letter, d.letter === 'C:' ? 'drive-win' : d.device ? (d.label.startsWith('SD') ? 'drive-sd' : 'drive-phone') : 'drive', 'indent'));
+    FS.drives().forEach(d => add(`${d.label} (${d.letter})`, d.letter, d.letter === 'C:' ? 'drive-win' : d.icon ? d.icon : d.device ? (d.label.startsWith('SD') ? 'drive-sd' : 'drive-phone') : 'drive', 'indent'));
     side.append(h('<div class="ex-side-sep"></div>'));
     add('Корзина', 'bin://', FS.bin().length ? 'recycle-full' : 'recycle');
   }
@@ -385,7 +385,7 @@ function openExplorer(args = {}) {
     const dbox = $('.ex-drives', content);
     FS.drives().forEach(d => {
       const pct = d.used / d.total * 100;
-      const c = h(`<div class="ex-drive">${Icons.get(d.letter === 'C:' ? 'drive-win' : d.device ? (d.label.startsWith('SD') ? 'drive-sd' : 'drive-phone') : 'drive', 48)}<div class="dinfo"><b>${esc(d.label)} (${d.letter})</b><div class="dbar"><i style="width:${pct.toFixed(1)}%;${pct > 90 ? 'background:var(--danger)' : ''}"></i></div><span>${fmtBytes(d.free)} свободно из ${fmtBytes(d.total)}</span></div></div>`);
+      const c = h(`<div class="ex-drive">${Icons.get(d.letter === 'C:' ? 'drive-win' : d.icon ? d.icon : d.device ? (d.label.startsWith('SD') ? 'drive-sd' : 'drive-phone') : 'drive', 48)}<div class="dinfo"><b>${esc(d.label)} (${d.letter})</b><div class="dbar"><i style="width:${pct.toFixed(1)}%;${pct > 90 ? 'background:var(--danger)' : ''}"></i></div><span>${fmtBytes(d.free)} свободно из ${fmtBytes(d.total)}</span></div></div>`);
       c.onclick = () => go(d.letter);
       c.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); UI.menu(e.clientX, e.clientY, [{ label: 'Открыть', icon: 'folder-open', action: () => go(d.letter) }, { label: 'Свойства', icon: 'info', action: () => UI.alert(`${d.label} (${d.letter})`, `${d.device ? 'Память устройства Android' : 'Файловая система: NTFS'}\nЗанято: ${fmtBytes(d.used)}\nСвободно: ${fmtBytes(d.free)}\nЁмкость: ${fmtBytes(d.total)}`) }]); };
       dbox.append(c);

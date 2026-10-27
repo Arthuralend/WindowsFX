@@ -26,7 +26,7 @@ const TorMode = (() => {
 })();
 
 Apps.register({
-  id: 'torbrowser', name: 'Браузер Tor', icon: 'tor', desc: 'Анонимный просмотр через сеть Tor, сайты .onion', network: true,
+  id: 'torbrowser', name: 'Браузер Tor', icon: 'tor', hidden: FX.web, desc: 'Анонимный просмотр через сеть Tor, сайты .onion', network: true,
   keywords: 'tor тор анонимный onion луковица приватный браузер vpn',
   launch: args => { TorMode.start(); return Apps.launch('browser', { ...args, tor: true }); },
 });

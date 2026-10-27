@@ -314,6 +314,29 @@ function osIndex() {
   return html;
 }
 
+// Названия в текстах рабочего стола: WindowsFX → Monomach (служебная папка .WindowsFX не меняется)
+const BRAND = [
+  ['WindowsFX и Android', 'Monomach'],
+  ['WindowsFX для Android', 'Monomach — режим эффективной работы'],
+  ['Это рабочий стол в стиле Windows для Android.', 'Это ваш рабочий стол Monomach в браузере.'],
+  ['рабочий стол для Android', 'режим эффективной работы'],
+  ['Диск D: — это память вашего устройства, а Документы, Загрузки и Изображения — настоящие папки телефона или планшета.', 'Диск D: — ваш личный диск на сервере: Документы, Загрузки и Изображения хранятся на нём и доступны с любого компьютера.'],
+];
+const branded = new Map();
+async function sendBranded(req, res, file) {
+  const st = await fsp.stat(file).catch(() => null);
+  if (!st) return send(res, 404, 'not found');
+  let c = branded.get(file);
+  if (!c || c.m !== st.mtimeMs) {
+    let t = await fsp.readFile(file, 'utf8');
+    for (const [a, b] of BRAND) t = t.split(a).join(b);
+    t = t.replace(/(?<![.\w])WindowsFX(?![\w])/g, CFG.siteName);
+    c = { m: st.mtimeMs, body: Buffer.from(t, 'utf8') };
+    branded.set(file, c);
+  }
+  send(res, 200, c.body, 'text/javascript; charset=utf-8', { 'Cache-Control': 'no-cache' });
+}
+
 async function serveAsset(req, res, rel) {
   const file = path.resolve(CFG.assets, '.' + path.posix.normalize('/' + rel));
   if (!file.startsWith(CFG.assets + path.sep)) return send(res, 403, 'forbidden');
@@ -323,6 +346,7 @@ async function serveAsset(req, res, rel) {
     if (html == null) return send(res, 404, 'not found');
     return send(res, 200, html.replace('<head>', `<head><script src="/assets/os/js/fx/craft-frame.js" data-app="${m[1]}"></script>`), 'text/html; charset=utf-8', { 'Cache-Control': 'no-cache' });
   }
+  if (/^os\/js\/(?!vendor\/).*\.js$/.test(rel)) return sendBranded(req, res, file);
   const cache = /\.(wasm|png|jpg|svg|woff2?|ttf|bcmap|pfb|wcaff|data)$/i.test(file) && !/\/os\//.test(file) ? 'public, max-age=86400' : 'no-cache';
   return sendFile(req, res, file, { cache });
 }

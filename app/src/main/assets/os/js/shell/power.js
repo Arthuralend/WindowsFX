@@ -196,6 +196,7 @@ const Power = (() => {
 
   async function signOut() {
     if (!await closeAllApps()) return;
+    if (FX.web) { showPower(spinner() + '<div class="ps-text">Выход из учётной записи</div>'); Store.flush(); return FXWeb.logout(); }
     sessionActive = false;
     showPower(spinner() + '<div class="ps-text">Выход из системы</div>');
     await sleep(Store.get('animations') ? 1200 : 300);

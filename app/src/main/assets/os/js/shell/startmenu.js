@@ -40,7 +40,10 @@ const StartMenu = (() => {
     });
     $('.sm-power', el()).onclick = e => {
       const r = e.currentTarget.getBoundingClientRect();
-      UI.menu(r.left - 150, r.top - 8, [
+      UI.menu(r.left - 150, r.top - 8, FX.web ? [
+        { label: 'Заблокировать', icon: 'lock', action: () => Power.lock() },
+        { label: 'Выйти из учётной записи', icon: 'signout', action: () => Power.signOut() },
+      ] : [
         { label: 'Заблокировать', icon: 'lock', action: () => Power.lock() },
         { label: 'Спящий режим', icon: 'sleep', action: () => Power.sleep() },
         { label: 'Завершение работы', icon: 'power', action: () => Power.shutdown() },
@@ -50,8 +53,8 @@ const StartMenu = (() => {
     $('.sm-user', el()).onclick = e => {
       const r = e.currentTarget.getBoundingClientRect();
       UI.menu(r.left, r.top - 8, [
-        { header: Store.get('userName') + ' · Локальная учётная запись' },
-        { label: 'Изменить параметры учётной записи', icon: 'user', action: () => Apps.launch('settings', { page: 'accounts' }) },
+        { header: Store.get('userName') + (FX.web ? ' · ' + FXWeb.login : ' · Локальная учётная запись') },
+        { label: 'Изменить параметры учётной записи', icon: 'user', action: () => Apps.launch('settings', { page: FX.web ? 'fx' : 'accounts' }) },
         { label: 'Заблокировать', icon: 'lock', action: () => Power.lock() },
         { label: 'Выйти', icon: 'signout', action: () => Power.signOut() },
       ], { above: true });

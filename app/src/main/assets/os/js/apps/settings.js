@@ -40,7 +40,7 @@ Apps.register({
 function openSettings(args = {}) {
   const NAV = [
     ['home', 'Главная', 'home', '#4f8cff'],
-    ['fx', 'WindowsFX и Android', 'phone', '#7c6cff'],
+    FX.web ? ['fx', 'Учётная запись и диски', 'user', '#1f7a72'] : ['fx', 'WindowsFX и Android', 'phone', '#7c6cff'],
     ['system', 'Система', 'display', '#4f8cff'],
     ['bluetooth', 'Bluetooth и устройства', 'bluetooth', '#2f9bff'],
     ['network', 'Сеть и Интернет', 'wifi', '#7a8cff'],
@@ -145,6 +145,7 @@ function openSettings(args = {}) {
   // ======================= Страницы =======================
   const PAGES = {
     fx() {
+      if (FX.web) return PAGES.web();
       pg.append(header('WindowsFX и Android'));
       const info = FX.info();
       const ff = FX.tryCall('freeform') || {};
@@ -200,6 +201,42 @@ function openSettings(args = {}) {
             'adb shell settings put global enable_freeform_support 1\nadb shell settings put global force_resizable_activities 1\nЗатем перезагрузите.',
           buttons: [{ label: 'Для разработчиков', value: 'dev', primary: true }, { label: 'Закрыть', value: null, cancel: true }],
         }).then(r => { if (r.button === 'dev') FX.call('openSettings', 'developer'); });
+      }
+    },
+    /** Сайт Monomach: учётная запись, диск, пароль, выход */
+    web() {
+      pg.append(header('Учётная запись и диски'));
+      const s1 = sec('Учётная запись');
+      const bar = h('<div style="width:min(300px,40vw);text-align:right"><div class="muted small mm-used">…</div><div style="height:6px;border-radius:3px;background:var(--surface-4);overflow:hidden;margin-top:6px"><i style="display:block;height:100%;width:0;background:var(--accent)"></i></div></div>');
+      const used = $('.mm-used', bar);
+      s1.append(
+        row('user', esc(FXWeb.login), 'Имя для входа на сайт', btn('Выйти', () => Power.signOut())),
+        row('hdd', 'Мой диск', 'Файлы на сервере: рабочий стол, документы, загрузки', bar),
+        row('lock', 'Пароль', 'Смените пароль для входа на сайт', btn('Сменить', changePw)),
+      );
+      FXWeb.me().then(m => {
+        used.textContent = `Занято ${fmtBytes(m.used)} из ${fmtBytes(m.quota)} · свободно ${fmtBytes(Math.max(0, m.quota - m.used))}`;
+        $('i', bar).style.width = Math.min(100, m.used / m.quota * 100) + '%';
+      }).catch(() => {});
+      const s2 = sec('Сохранение');
+      s2.append(row('cloud', 'Настройки и рабочий стол', 'Сохраняются в вашей учётной записи при каждом изменении — войдите с любого компьютера, и всё будет на месте', null));
+      pg.append(s1, s2);
+      if (typeof WebDisks !== 'undefined') WebDisks.settings(pg, { sec, row, btn });
+      async function changePw() {
+        const box = h('<div style="display:grid;gap:10px;min-width:300px"><input class="input pw-old" type="password" placeholder="Текущий пароль" autocomplete="current-password"><input class="input pw-new" type="password" placeholder="Новый пароль (не короче 8 символов)" autocomplete="new-password"><input class="input pw-new2" type="password" placeholder="Повторите новый пароль" autocomplete="new-password"></div>');
+        setTimeout(() => $('.pw-old', box).focus(), 60);
+        const r = await UI.dialog({
+          title: 'Смена пароля', content: box,
+          buttons: [{ label: 'Сменить', value: 'ok', primary: true }, { label: 'Отмена', value: null, cancel: true }],
+          validate: () => {
+            if ($('.pw-new', box).value.length < 8) return 'Новый пароль должен быть не короче 8 символов.';
+            if ($('.pw-new', box).value !== $('.pw-new2', box).value) return 'Пароли не совпадают.';
+            return null;
+          },
+        });
+        if (r.button !== 'ok') return;
+        try { await FXWeb.changePassword($('.pw-old', box).value, $('.pw-new', box).value); UI.notify({ title: 'Пароль изменён', icon: 'lock', transient: true }); }
+        catch (e) { UI.alert('Смена пароля', e.message, 'error'); }
       }
     },
     'fx-windows'() { PAGES.fx(); },
