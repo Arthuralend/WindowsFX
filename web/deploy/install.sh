@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
 # Monomach.ru — установка на чистый сервер Ubuntu 22.04 / 24.04 (или Debian 12).
 # Запуск от root:   curl -fsSL https://raw.githubusercontent.com/Arthuralend/WindowsFX/main/web/deploy/install.sh | bash -s -- monomach.ru
-# Повторный запуск обновляет сайт (данные пользователей не трогаются).
+# Без домена (проверка по IP, без HTTPS):  ... | bash -s -- ip
+# Повторный запуск обновляет сайт (данные пользователей не трогаются); с доменом — включает HTTPS.
 set -euo pipefail
 
 DOMAIN="${1:-monomach.ru}"
+IPMODE=0
+if [ "$DOMAIN" = ip ] || [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  IPMODE=1
+  DOMAIN=$(curl -fsS4 --max-time 5 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
+fi
+SCHEME=https; [ $IPMODE = 1 ] && SCHEME=http
 REPO="https://github.com/Arthuralend/WindowsFX"
 APP=/opt/monomach
 DATA=/var/lib/monomach
 ENVF=/etc/monomach.env
 
 [ "$(id -u)" = 0 ] || { echo "Запустите от root (sudo -i)"; exit 1; }
-echo "== Monomach: сайт https://$DOMAIN"
+echo "== Monomach: сайт $SCHEME://$DOMAIN"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
@@ -58,11 +65,11 @@ PORT=8080
 HOST=127.0.0.1
 DATA_DIR=$DATA
 SITE_NAME=Monomach
-PUBLIC_URL=https://$DOMAIN
-SECURE_COOKIES=1
+PUBLIC_URL=$SCHEME://$DOMAIN
+SECURE_COOKIES=$([ $IPMODE = 1 ] && echo 0 || echo 1)
 # Лимит личного диска нового пользователя, МБ (можно менять в панели администратора)
 DEFAULT_QUOTA_MB=1024
-# Панель администратора: https://$DOMAIN/admin
+# Панель администратора: $SCHEME://$DOMAIN/admin
 ADMIN_LOGIN=admin
 ADMIN_PASSWORD=$PW
 # Вход через Google для подключения Google Диска (см. web/README.md). Пусто — кнопка Google выключена.
@@ -72,6 +79,8 @@ EOF
   chmod 600 "$ENVF"
   NEWPW=$PW
 fi
+# адрес сайта и защищённые cookie — по текущему режиму (IP или домен)
+sed -i "s#^PUBLIC_URL=.*#PUBLIC_URL=$SCHEME://$DOMAIN#; s#^SECURE_COOKIES=.*#SECURE_COOKIES=$([ $IPMODE = 1 ] && echo 0 || echo 1)#" "$ENVF"
 
 cat > /etc/systemd/system/monomach.service <<EOF
 [Unit]
@@ -95,6 +104,16 @@ PrivateTmp=true
 WantedBy=multi-user.target
 EOF
 
+if [ $IPMODE = 1 ]; then
+cat > /etc/caddy/Caddyfile <<EOF
+:80 {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080 {
+		flush_interval -1
+	}
+}
+EOF
+else
 cat > /etc/caddy/Caddyfile <<EOF
 $DOMAIN, www.$DOMAIN {
 	@www host www.$DOMAIN
@@ -105,6 +124,7 @@ $DOMAIN, www.$DOMAIN {
 	}
 }
 EOF
+fi
 
 systemctl daemon-reload
 systemctl enable -q --now monomach
@@ -115,7 +135,10 @@ systemctl reload caddy || systemctl restart caddy
 if command -v ufw >/dev/null && ufw status | grep -q active; then ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; fi
 
 sleep 2
-curl -fsS http://127.0.0.1:8080/healthz >/dev/null && echo "== Сайт запущен: https://$DOMAIN" || { echo "!! Сайт не отвечает: journalctl -u monomach -n 50"; exit 1; }
-echo "   Панель администратора: https://$DOMAIN/admin"
+curl -fsS http://127.0.0.1:8080/healthz >/dev/null && echo "== Сайт запущен: $SCHEME://$DOMAIN" || { echo "!! Сайт не отвечает: journalctl -u monomach -n 50"; exit 1; }
+echo "   Панель администратора: $SCHEME://$DOMAIN/admin"
+if [ $IPMODE = 1 ]; then echo "   Режим проверки без HTTPS. Когда домен заработает, запустите скрипт ещё раз с доменом."; fi
 [ -n "${NEWPW:-}" ] && echo "   Логин: admin   Пароль: $NEWPW   (сохраните; сменить можно в панели)"
 echo "   Настройки: $ENVF   Данные пользователей: $DATA"
+
+exit 0
