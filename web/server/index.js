@@ -432,7 +432,8 @@ const server = http.createServer((req, res) => {
 });
 server.requestTimeout = 0;
 // Mac: если программа Monomach закрылась аварийно, сервер не остаётся висеть в фоне
-if (CFG.local) setInterval(() => { if (process.ppid === 1) process.exit(0); }, 2000).unref();
+const PARENT = process.ppid;
+if (CFG.local && PARENT !== 1) setInterval(() => { if (process.ppid !== PARENT) process.exit(0); }, 2000).unref();
 server.listen(CFG.port, CFG.host, () => console.log(`[monomach] ${CFG.siteName} ${CFG.version}: http://${CFG.host}:${CFG.port}  данные: ${CFG.dataDir}`));
 
 module.exports = { server, CFG, db };
