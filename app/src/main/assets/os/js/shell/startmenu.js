@@ -42,7 +42,7 @@ const StartMenu = (() => {
       const r = e.currentTarget.getBoundingClientRect();
       UI.menu(r.left - 150, r.top - 8, FX.web ? [
         { label: 'Заблокировать', icon: 'lock', action: () => Power.lock() },
-        { label: 'Выйти из учётной записи', icon: 'signout', action: () => Power.signOut() },
+        { label: FX.mac ? 'Выйти из Monomach' : 'Выйти из учётной записи', icon: 'signout', action: () => Power.signOut() },
       ] : [
         { label: 'Заблокировать', icon: 'lock', action: () => Power.lock() },
         { label: 'Спящий режим', icon: 'sleep', action: () => Power.sleep() },

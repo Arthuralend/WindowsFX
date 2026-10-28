@@ -53,7 +53,7 @@ const FileOps = (() => {
     if (!app && FS.isDevice(path)) {
       const r = await UI.dialog({
         title: 'Как вы хотите открыть этот файл?', message: FS.basename(path), icon: 'question',
-        buttons: [{ label: 'Приложение Android…', value: 'android', primary: true }, { label: 'Блокнот', value: 'notepad' }, { label: 'Отмена', value: null, cancel: true }],
+        buttons: [{ label: FX.extLabel, value: 'android', primary: true }, { label: 'Блокнот', value: 'notepad' }, { label: 'Отмена', value: null, cancel: true }],
       });
       if (!r.button) return;
       addRecent(path);
@@ -232,7 +232,7 @@ const FileOps = (() => {
     if (t.kind === 'sheet' || FS.ext(path) === 'csv') list.unshift(['tabs', 'Tabs']);
     if (t.kind === 'image' || t.kind === 'psd') list.unshift(['photostore', 'Photostore']);
     const items = list.filter(([a]) => Apps.get(a)).map(([a, n]) => ({ label: n, icon: 'app:' + Apps.get(a).icon, action: () => openWith(path, a) }));
-    if (FS.isDevice(path)) items.push({ sep: true }, { label: 'Приложение Android…', icon: 'external', action: () => FX.call('openExternal', FS.toNative(path), true) });
+    if (FS.isDevice(path)) items.push({ sep: true }, { label: FX.extLabel, icon: 'external', action: () => FX.call('openExternal', FS.toNative(path), true) });
     return items;
   }
 
@@ -258,7 +258,7 @@ const FileOps = (() => {
       single ? { label: 'Переименовать', icon: 'rename', shortcut: 'F2', disabled: prot, action: () => ctx.rename ? ctx.rename(p) : renameDialog(p) } : null,
       { label: 'Удалить', icon: 'trash', shortcut: 'Del', disabled: prot, action: () => remove(paths) },
       { sep: true },
-      single && node?.t === 'f' && FS.isDevice(p) ? { label: 'Поделиться…', icon: 'share', action: () => FX.call('share', FS.toNative(p)) } : null,
+      single && node?.t === 'f' && FS.isDevice(p) ? { label: FX.mac ? 'Показать в Finder' : 'Поделиться…', icon: 'share', action: () => FX.call('share', FS.toNative(p)) } : null,
       single && node?.t === 'f' && !FS.isDevice(p) ? { label: 'Сохранить в «Загрузки» устройства', icon: 'download', action: () => { try { const out = FS.copy(p, FS.P.downloads); UI.notify({ title: 'Файл сохранён', body: FS.display(out), icon: 'download', transient: true }); } catch (e) { UI.alert('Сохранение', e.message, 'error'); } } } : null,
       single ? { label: 'Свойства', icon: 'info', shortcut: 'Alt+Enter', action: () => UI.properties(p) } : null,
     ];

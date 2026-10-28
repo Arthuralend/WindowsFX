@@ -65,6 +65,10 @@ const FX = (() => {
     available: !!N,
     /** Рабочий стол открыт на сайте (Monomach), а не в приложении Android */
     web: !!(N && N.__web),
+    /** Monomach для Mac (диск D: — домашняя папка Mac) */
+    mac: !!(N && N.__mac),
+    /** Подпись пункта «открыть во внешней программе» */
+    extLabel: N && N.__mac ? 'Программа Mac…' : N && N.__web ? 'Скачать на компьютер' : 'Приложение Android…',
     /** Есть ли у хоста функция */
     has: name => !!(N && typeof N[name] === 'function'),
     call, tryCall,

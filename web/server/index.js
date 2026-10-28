@@ -27,7 +27,12 @@ const CFG = {
   siteName: env.SITE_NAME || 'Monomach',
   version: require(path.join(ROOT, 'package.json')).version,
   sessionDays: 30,
+  // Monomach для Mac: один пользователь, вход по секретному ключу программы, диск D: — домашняя папка Mac
+  local: env.LOCAL_MODE === '1',
+  localToken: env.LOCAL_TOKEN || '',
+  localHome: env.LOCAL_HOME || os.homedir(),
 };
+if (CFG.local && CFG.localToken.length < 16) { console.error('LOCAL_MODE требует LOCAL_TOKEN'); process.exit(1); }
 
 const db = open(CFG.dataDir);
 const setting = (k, def) => { const r = db.prepare('SELECT v FROM settings WHERE k=?').get(k); return r ? r.v : def; };
@@ -40,6 +45,7 @@ const box = A.cipher(secret);
 
 // ---------- учётная запись администратора
 (function initAdmin() {
+  if (CFG.local) return;
   // ADMIN_LOGIN/ADMIN_PASSWORD задают администратора при первом запуске; ADMIN_RESET=1 — сбросить пароль из настроек
   if (env.ADMIN_LOGIN && env.ADMIN_PASSWORD) {
     if (!setting('admin_login') || env.ADMIN_RESET === '1') {
@@ -56,7 +62,7 @@ const box = A.cipher(secret);
   }
 })();
 
-const ctx = { db, dataDir: CFG.dataDir, version: CFG.version, usage: new Map(), dirtyUsage: new Set(), clouds: null, box };
+const ctx = { db, dataDir: CFG.dataDir, version: CFG.version, usage: new Map(), dirtyUsage: new Set(), clouds: null, box, local: CFG.local ? { home: CFG.localHome } : null };
 try { ctx.clouds = require('./clouds').init(ctx); } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') console.error(e); }
 setInterval(() => {
   for (const id of ctx.dirtyUsage) { const c = ctx.usage.get(id); if (c) db.prepare('UPDATE users SET used=? WHERE id=?').run(c.used, id); }
@@ -148,7 +154,23 @@ function getSession(req, kind) {
   }
   return s;
 }
+let localUser = null;
+function getLocalUser(req) {
+  if (A.parseCookies(req.headers.cookie).mm_l !== CFG.localToken) return null;
+  if (!localUser) {
+    let u = db.prepare('SELECT * FROM users WHERE login=?').get('mac');
+    if (!u) {
+      const now = Date.now();
+      const r = db.prepare('INSERT INTO users(login,pass,created,last_login,last_seen,logins,quota) VALUES(?,?,?,?,?,0,0)').run('mac', '-', now, now, now);
+      db.prepare('INSERT INTO profiles(user_id,data,updated) VALUES(?,?,?)').run(Number(r.lastInsertRowid), JSON.stringify({ 'w12.settings': JSON.stringify({ userName: env.LOCAL_USER || os.userInfo().username, deviceName: 'MAC' }) }), now);
+      u = db.prepare('SELECT * FROM users WHERE login=?').get('mac');
+    }
+    localUser = u;
+  }
+  return { ...localUser, session: 'local' };
+}
 function getUser(req) {
+  if (CFG.local) return getLocalUser(req);
   const s = getSession(req, 'user');
   if (!s) return null;
   const u = db.prepare('SELECT * FROM users WHERE id=?').get(s.user_id);
@@ -366,6 +388,15 @@ async function route(req, res) {
   if (p.startsWith('/assets/')) return serveAsset(req, res, p.slice(8));
   if (p === '/favicon.ico') return sendFile(req, res, path.join(CFG.pub, 'icon.svg'), { type: 'image/svg+xml' });
 
+  if (CFG.local) {
+    // вход из программы Monomach для Mac: /auth?t=<ключ> ставит cookie и открывает рабочий стол
+    if (p === '/auth') {
+      if (url.searchParams.get('t') !== CFG.localToken) return send(res, 403, 'forbidden');
+      res.writeHead(302, { Location: '/', 'Set-Cookie': `mm_l=${CFG.localToken}; Path=/; HttpOnly; SameSite=Strict`, 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+    if (p === '/admin' || p.startsWith('/api/admin/') || p === '/api/register' || p === '/api/login' || p === '/api/password') return send(res, 404, 'not found');
+  }
   if (p === '/admin' || p === '/admin/') return sendFile(req, res, path.join(CFG.pub, 'admin.html'));
   if (p.startsWith('/api/admin/')) return admin.handle(req, res, p.slice(11), url);
 
@@ -377,6 +408,7 @@ async function route(req, res) {
   const u = getUser(req);
   if (p === '/' || p === '/login' || p === '/register') {
     if (p === '/' && u) return send(res, 200, osIndex(), 'text/html; charset=utf-8');
+    if (CFG.local) return send(res, 403, 'Откройте рабочий стол через программу Monomach.');
     if (p !== '/' && u) { res.writeHead(302, { Location: '/' }); return res.end(); }
     return sendFile(req, res, path.join(CFG.pub, 'login.html'));
   }
@@ -384,9 +416,9 @@ async function route(req, res) {
     if (p.startsWith('/native/') || p.startsWith('/api/')) return json(res, 401, { err: 'EAUTH', error: 'Требуется вход' });
     res.writeHead(302, { Location: '/login' }); return res.end();
   }
-  if (p === '/api/me') return json(res, 200, { login: u.login, created: u.created, quota: u.quota, used: (await space(u).quota.get()).used });
+  if (p === '/api/me') { const q = await space(u).quota.get(); return json(res, 200, { local: CFG.local, login: u.login, created: u.created, quota: CFG.local ? q.quota : u.quota, used: q.used }); }
   if (p === '/api/password' && M === 'POST') return apiPassword(req, res, u);
-  if (p === '/api/profile' && M === 'GET') { const pr = loadProfile(u.id); return json(res, 200, { login: u.login, data: pr.data, updated: pr.updated }); }
+  if (p === '/api/profile' && M === 'GET') { const pr = loadProfile(u.id); return json(res, 200, { login: u.login, data: pr.data, updated: pr.updated, local: CFG.local }); }
   if (p === '/api/profile' && (M === 'PUT' || M === 'POST')) return apiProfilePut(req, res, u);
   if (p === '/api/upload' && (M === 'PUT' || M === 'POST')) return apiUpload(req, res, u, url);
   if (p.startsWith('/native/') && M === 'POST') return apiNative(req, res, u, p.slice(8));
@@ -399,6 +431,8 @@ const server = http.createServer((req, res) => {
   route(req, res).catch(e => { console.error(e); if (!res.headersSent) json(res, 500, { error: 'Внутренняя ошибка сервера' }); else res.end(); });
 });
 server.requestTimeout = 0;
+// Mac: если программа Monomach закрылась аварийно, сервер не остаётся висеть в фоне
+if (CFG.local) setInterval(() => { if (process.ppid === 1) process.exit(0); }, 2000).unref();
 server.listen(CFG.port, CFG.host, () => console.log(`[monomach] ${CFG.siteName} ${CFG.version}: http://${CFG.host}:${CFG.port}  данные: ${CFG.dataDir}`));
 
 module.exports = { server, CFG, db };

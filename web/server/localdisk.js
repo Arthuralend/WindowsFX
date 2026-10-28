@@ -24,7 +24,7 @@ async function treeSize(p) {
 
 class LocalDisk {
   /** @param root абсолютный путь папки; @param quota {get():{used,quota}, add(delta)} */
-  constructor(root, quota) { this.root = root; this.q = quota; fs.mkdirSync(root, { recursive: true }); }
+  constructor(root, quota, opts = {}) { this.root = root; this.q = quota; if (!opts.noCreate) fs.mkdirSync(root, { recursive: true }); }
 
   abs(rel) {
     const p = path.resolve(this.root, '.' + path.posix.normalize('/' + (rel || '')));
@@ -141,7 +141,7 @@ class LocalDisk {
     const walk = async (d, r) => {
       for (const e of await fsp.readdir(d, { withFileTypes: true }).catch(() => [])) {
         if (out.length >= limit) return;
-        if (e.name.startsWith('.')) continue;
+        if (e.name.startsWith('.') || e.name === 'node_modules' || (!r && e.name === 'Library')) continue;
         const p = path.join(d, e.name), rr = r ? r + '/' + e.name : e.name;
         if (e.name.toLowerCase().includes(q)) {
           const st = await fsp.stat(p).catch(() => null);

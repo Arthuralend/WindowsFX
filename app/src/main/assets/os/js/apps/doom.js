@@ -17,6 +17,8 @@ Apps.register({
   if (Persist.get('doom.installed', false)) return;
   try {
     if (!Store.get('startPinned').includes('doom')) Store.update('startPinned', p => [...p, 'doom']);
+    // сайт и Mac: ярлыки не пишутся в настоящие папки пользователя
+    if (FX.web) { Persist.set('doom.installed', true); return; }
     const lnk = FS.P.desktop + '/DOOM.lnk';
     if (FS.isDir(FS.P.desktop) && !FS.exists(lnk)) FS.write(lnk, JSON.stringify({ app: 'doom' }));
     const exe = 'D:/Игры/DOOM/doom.exe';

@@ -115,7 +115,8 @@ const FS = (() => {
       if (FX.web) {
         // Сайт: рабочий стол и папки пользователя — на личном диске сервера; C: — небольшой системный диск профиля
         DRIVES['C:'] = { label: 'Система', total: 20 * 1048576, base: 0 };
-        Object.assign(P, { desktop: D0 + '/Рабочий стол', docs: D0 + '/Документы', downloads: D0 + '/Загрузки', pictures: D0 + '/Изображения', music: D0 + '/Музыка', videos: D0 + '/Видео', camera: D0 + '/Изображения' });
+        const F = DEV[D0].folders || { desktop: 'Рабочий стол', docs: 'Документы', downloads: 'Загрузки', pictures: 'Изображения', music: 'Музыка', videos: 'Видео' };
+        Object.assign(P, { desktop: D0 + '/' + F.desktop, docs: D0 + '/' + F.docs, downloads: D0 + '/' + F.downloads, pictures: D0 + '/' + F.pictures, music: D0 + '/' + F.music, videos: D0 + '/' + F.videos, camera: D0 + '/' + F.pictures });
       } else
       Object.assign(P, { docs: D0 + '/Documents', downloads: D0 + '/Download', pictures: D0 + '/Pictures', music: D0 + '/Music', videos: D0 + '/Movies', camera: D0 + '/DCIM' });
       FOLDER_ICONS = { [P.desktop]: 'folder-desktop', [P.docs]: 'folder-docs', [P.downloads]: 'folder-downloads', [P.pictures]: 'folder-images', [P.music]: 'folder-music', [P.videos]: 'folder-video', [P.camera]: 'folder-images' };
@@ -134,7 +135,7 @@ const FS = (() => {
       }
     }
     migrateDesktop();
-    if (FX.web && isDev(P.desktop)) seedWebDesktop();
+    if (FX.web && isDev(P.desktop) && !Object.values(DEV).some(d => d.mac)) seedWebDesktop();
   }
 
   /** Сайт: при первом входе ярлыки и «Прочти меня» переносятся на рабочий стол личного диска */
@@ -215,7 +216,7 @@ const FS = (() => {
         // сайт: у каждого диска своя постоянная буква (D: — личный диск, G:… — облака, L:… — папки компьютера)
         const L = r.letter && !DEV[r.letter] && !['A:', 'B:', 'C:'].includes(r.letter) ? r.letter : letters.find(l => !DEV[l]);
         if (!L) return;
-        DEV[L] = { root: r.path, label: r.label || (i === 0 ? 'Внутренняя память' : (roots.length > 2 ? 'SD-карта ' + i : 'SD-карта')), total: r.total, free: r.free, kind: r.kind || r.key };
+        DEV[L] = { root: r.path, label: r.label || (i === 0 ? 'Внутренняя память' : (roots.length > 2 ? 'SD-карта ' + i : 'SD-карта')), total: r.total, free: r.free, kind: r.kind || r.key, folders: r.folders || null, mac: !!r.mac };
       });
     } catch (e) { console.warn('device roots', e); }
   }
@@ -792,7 +793,7 @@ const FS = (() => {
     return { kind: 'other', label: e ? `Файл «${e.toUpperCase()}»` : 'Файл', icon: 'file-generic' };
   }
 
-  const DRIVE_ICONS = { disk: 'drive-home', webdav: 'drive-net', yandex: 'drive-cloud-y', mailru: 'drive-cloud-m', gdrive: 'drive-cloud-g', cloud: 'drive-cloud', local: 'drive-local' };
+  const DRIVE_ICONS = { disk: 'drive-home', webdav: 'drive-net', yandex: 'drive-cloud-y', mailru: 'drive-cloud-m', gdrive: 'drive-cloud-g', cloud: 'drive-cloud', local: 'drive-local', volume: 'drive' };
   function drives() {
     const virt = Object.entries(DRIVES).filter(([l]) => root[l]).map(([letter, d]) => {
       const used = d.base + nodeSize(root[letter]);

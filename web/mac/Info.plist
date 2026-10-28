@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>ru</string>
+	<key>CFBundleExecutable</key><string>Monomach</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>CFBundleIdentifier</key><string>ru.monomach.mac</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>CFBundleName</key><string>Monomach</string>
+	<key>CFBundleDisplayName</key><string>Monomach</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>__VERSION__</string>
+	<key>CFBundleVersion</key><string>__BUILD__</string>
+	<key>LSMinimumSystemVersion</key><string>13.0</string>
+	<key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSHumanReadableCopyright</key><string>Monomach — режим эффективной работы</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key><true/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key><true/>
+	</dict>
+	<key>NSDesktopFolderUsageDescription</key><string>Monomach показывает файлы вашего Рабочего стола на диске D:.</string>
+	<key>NSDocumentsFolderUsageDescription</key><string>Monomach открывает и сохраняет ваши документы в папке «Документы».</string>
+	<key>NSDownloadsFolderUsageDescription</key><string>Monomach показывает и сохраняет файлы в папке «Загрузки».</string>
+	<key>NSRemovableVolumesUsageDescription</key><string>Monomach показывает подключённые флешки и внешние диски.</string>
+	<key>NSNetworkVolumesUsageDescription</key><string>Monomach показывает подключённые сетевые диски.</string>
+	<key>NSCameraUsageDescription</key><string>Программа «Камера» в Monomach использует камеру Mac.</string>
+	<key>NSMicrophoneUsageDescription</key><string>Запись звука в программах Monomach.</string>
+</dict>
+</plist>

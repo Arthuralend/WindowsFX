@@ -26,6 +26,7 @@ const AppData = (() => {
     timers[name] = setTimeout(() => backup(name, v), 1200);
   }
   function backup(name, v) {
+    if (FX.web) return; // сайт и Mac: данные уже хранятся в учётной записи
     const d = dir();
     if (d && FX.available && FX.tryCall('hasAccess')) FX.tryCall('writeText', d + '/' + name + '.json', JSON.stringify(v));
   }

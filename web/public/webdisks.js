@@ -3,7 +3,7 @@
 'use strict';
 
 const WebDisks = (() => {
-  const KIND = { disk: 'Личный диск на сервере', yandex: 'Яндекс Диск', mailru: 'Облако Mail.ru', gdrive: 'Google Диск', webdav: 'Сетевой диск WebDAV', local: 'Папка этого компьютера' };
+  const KIND = { cloud: 'iCloud Drive', volume: 'Внешний диск', disk: FX.mac ? 'Домашняя папка Mac' : 'Личный диск на сервере', yandex: 'Яндекс Диск', mailru: 'Облако Mail.ru', gdrive: 'Google Диск', webdav: 'Сетевой диск WebDAV', local: 'Папка этого компьютера' };
   const ICON = { yandex: 'drive-cloud-y', mailru: 'drive-cloud-m', gdrive: 'drive-cloud-g', webdav: 'drive-net', local: 'drive-local' };
   const HELP = {
     yandex: `<b>Как получить пароль приложения:</b> откройте <a href="https://id.yandex.ru/security/app-passwords" target="_blank" rel="noopener">Яндекс ID → Безопасность → Пароли приложений</a>, выберите «Файлы» (WebDAV), придумайте название и скопируйте пароль. Логин — ваш логин Яндекса (без @yandex.ru).`,

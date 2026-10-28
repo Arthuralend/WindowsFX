@@ -1,0 +1,45 @@
+name: Build Monomach for Mac
+on:
+  push:
+    branches: [main]
+    paths: [ "web/**", "app/src/main/assets/os/**", ".github/workflows/build-mac.yml" ]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  mac:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Monomach.app and DMG
+        env:
+          VERSION: 1.0.${{ github.run_number }}
+          BUILD: ${{ github.run_number }}
+        run: web/mac/build.sh 2>&1 | tee mac-build.log; exit ${PIPESTATUS[0]}
+      - name: Smoke test (server starts from the bundle)
+        run: |
+          APP=web/mac/build/Monomach.app/Contents/Resources
+          mkdir -p /tmp/mmh/Desktop /tmp/mmh/Documents
+          LOCAL_MODE=1 LOCAL_TOKEN=0123456789abcdef0123 LOCAL_HOME=/tmp/mmh PORT=8765 HOST=127.0.0.1 DATA_DIR=/tmp/mmd ASSETS_DIR=$APP/app/assets \
+            $APP/node/node --no-warnings=ExperimentalWarning $APP/app/web/server/index.js & 
+          for i in $(seq 1 50); do curl -fsS http://127.0.0.1:8765/healthz && break; sleep 0.2; done
+          curl -fsS -c /tmp/cj -b /tmp/cj -L -o /tmp/idx.html "http://127.0.0.1:8765/auth?t=0123456789abcdef0123"; grep -q "js/main.js" /tmp/idx.html
+          curl -fsS -b /tmp/cj -X POST -H 'Content-Type: application/json' -d '[]' http://127.0.0.1:8765/native/roots
+          kill %1
+      - uses: actions/upload-artifact@v4
+        with: { name: Monomach-mac, path: web/mac/build/*.dmg }
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DMG=$(ls web/mac/build/*.dmg)
+          gh release view mac-latest >/dev/null 2>&1 || gh release create mac-latest -t "Monomach для Mac" -n "Полноэкранная версия Monomach для Mac (Apple Silicon, macOS 13+)."
+          gh release upload mac-latest "$DMG" --clobber
+      - name: Log on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -f mac-build.log ] || echo "no log" > mac-build.log
+          gh release view ci-logs >/dev/null 2>&1 || gh release create ci-logs -t "CI logs" -n "logs"
+          gh release upload ci-logs mac-build.log --clobber

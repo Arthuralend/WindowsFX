@@ -150,7 +150,12 @@ const Power = (() => {
     (Store.get('startupApps') || []).forEach((id, i) => setTimeout(() => Apps.get(id) && Apps.launch(id), 400 + i * 250));
     if (Store.get('firstRun')) {
       Store.set('firstRun', false);
-      setTimeout(() => UI.notify({
+      if (FX.mac) setTimeout(() => UI.notify({
+        title: 'Добро пожаловать в Monomach!',
+        body: 'Диск D: — ваша домашняя папка Mac: Документы, Загрузки и Рабочий стол те же, что в Finder. Выход — ⌘Q.',
+        icon: 'start', appName: 'Monomach', onClick: () => Apps.launch('explorer', { path: 'thispc://' }),
+      }), 1200);
+      else setTimeout(() => UI.notify({
         title: 'Добро пожаловать в WindowsFX!',
         body: 'Откройте «Прочти меня» на рабочем столе, чтобы узнать о горячих клавишах и возможностях системы.',
         icon: 'start', appName: 'WindowsFX', onClick: () => FileOps.open(FS.P.desktop + '/Прочти меня.txt'),

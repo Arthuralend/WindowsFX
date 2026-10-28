@@ -40,7 +40,7 @@ Apps.register({
 function openSettings(args = {}) {
   const NAV = [
     ['home', 'Главная', 'home', '#4f8cff'],
-    FX.web ? ['fx', 'Учётная запись и диски', 'user', '#1f7a72'] : ['fx', 'WindowsFX и Android', 'phone', '#7c6cff'],
+    FX.mac ? ['fx', 'Mac и диски', 'display', '#1f7a72'] : FX.web ? ['fx', 'Учётная запись и диски', 'user', '#1f7a72'] : ['fx', 'WindowsFX и Android', 'phone', '#7c6cff'],
     ['system', 'Система', 'display', '#4f8cff'],
     ['bluetooth', 'Bluetooth и устройства', 'bluetooth', '#2f9bff'],
     ['network', 'Сеть и Интернет', 'wifi', '#7a8cff'],
@@ -205,6 +205,7 @@ function openSettings(args = {}) {
     },
     /** Сайт Monomach: учётная запись, диск, пароль, выход */
     web() {
+      if (FX.mac) return PAGES.mac();
       pg.append(header('Учётная запись и диски'));
       const s1 = sec('Учётная запись');
       const bar = h('<div style="width:min(300px,40vw);text-align:right"><div class="muted small mm-used">…</div><div style="height:6px;border-radius:3px;background:var(--surface-4);overflow:hidden;margin-top:6px"><i style="display:block;height:100%;width:0;background:var(--accent)"></i></div></div>');
@@ -219,7 +220,7 @@ function openSettings(args = {}) {
         $('i', bar).style.width = Math.min(100, m.used / m.quota * 100) + '%';
       }).catch(() => {});
       const s2 = sec('Сохранение');
-      s2.append(row('cloud', 'Настройки и рабочий стол', 'Сохраняются в вашей учётной записи при каждом изменении — войдите с любого компьютера, и всё будет на месте', null));
+      s2.append(row('folder', 'Настройки и рабочий стол', 'Сохраняются в вашей учётной записи при каждом изменении — войдите с любого компьютера, и всё будет на месте', null));
       pg.append(s1, s2);
       if (typeof WebDisks !== 'undefined') WebDisks.settings(pg, { sec, row, btn });
       async function changePw() {
@@ -238,6 +239,24 @@ function openSettings(args = {}) {
         try { await FXWeb.changePassword($('.pw-old', box).value, $('.pw-new', box).value); UI.notify({ title: 'Пароль изменён', icon: 'lock', transient: true }); }
         catch (e) { UI.alert('Смена пароля', e.message, 'error'); }
       }
+    },
+    /** Monomach для Mac */
+    mac() {
+      pg.append(header('Mac и диски'));
+      const s1 = sec('Monomach для Mac');
+      const bar = h('<div style="width:min(300px,40vw);text-align:right"><div class="muted small mm-used">…</div><div style="height:6px;border-radius:3px;background:var(--surface-4);overflow:hidden;margin-top:6px"><i style="display:block;height:100%;width:0;background:var(--accent)"></i></div></div>');
+      s1.append(
+        row('hdd', 'Этот Mac (D:)', 'Диск D: — ваша домашняя папка: Рабочий стол, Документы, Загрузки — те же, что в Finder', bar),
+        row('folder', 'iCloud Drive и внешние диски', 'Появляются отдельными дисками в «Этом компьютере», когда подключены', null),
+        row('info', 'Сохранение', 'Настройки и данные программ хранятся на этом Mac и сохраняются при каждом изменении', null),
+        row('power', 'Выйти из Monomach', 'Также ⌘Q. Полноэкранный режим — ⌃⌘F', btn('Выйти', () => Power.signOut())),
+      );
+      FXWeb.me().then(m => {
+        $('.mm-used', bar).textContent = `Занято ${fmtBytes(m.used)} из ${fmtBytes(m.quota)} · свободно ${fmtBytes(Math.max(0, m.quota - m.used))}`;
+        $('i', bar).style.width = Math.min(100, m.used / m.quota * 100) + '%';
+      }).catch(() => {});
+      pg.append(s1);
+      if (typeof WebDisks !== 'undefined') WebDisks.settings(pg, { sec, row, btn });
     },
     'fx-windows'() { PAGES.fx(); },
     'fx-storage'() { PAGES.fx(); },

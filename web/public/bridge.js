@@ -22,6 +22,8 @@
   Object.keys(LS).filter(k => tracked(k)).forEach(k => oRem.call(LS, k));
   for (const [k, v] of Object.entries(prof.data || {})) if (tracked(k)) { try { oSet.call(LS, k, v); } catch (e) { console.warn('profile', k, e); } }
   oSet.call(LS, 'mm.owner', prof.login || '');
+  const LOCAL = !!prof.local; // Monomach для Mac
+  const mac = msg => { try { window.webkit.messageHandlers.monomach.postMessage(msg); return true; } catch { return false; } };
 
   let pend = { set: {}, del: new Set() };
   let timer = null, inflight = false;
@@ -81,7 +83,7 @@
   const OK = v => JSON.stringify({ ok: v === undefined ? true : v });
   const SERVER = ['info', 'hasAccess', 'requestAccess', 'roots', 'stat', 'list', 'readText', 'readBase64', 'writeText', 'writeBase64', 'writeChunk',
     'mkdir', 'rename', 'remove', 'copy', 'move', 'trash', 'untrash', 'purge', 'search', 'usage'];
-  const N = { __web: true };
+  const N = { __web: true, __mac: LOCAL };
   SERVER.forEach(n => { N[n] = (...a) => rpc(n, a); });
 
   const enc = p => p.split('/').map(encodeURIComponent).join('/');
@@ -114,9 +116,9 @@
       inp.click();
       return OK();
     },
-    openExternal(np) { download(np); return OK(); },
-    share(np) { download(np); return OK(); },
-    launchUrl(url) { window.open(url, '_blank', 'noopener'); return OK(); },
+    openExternal(np) { if (LOCAL && !np.startsWith('/local/')) return rpc('openExternal', [np]); download(np); return OK(); },
+    share(np) { if (LOCAL && !np.startsWith('/local/')) return rpc('reveal', [np]); download(np); return OK(); },
+    launchUrl(url) { if (!(LOCAL && mac({ cmd: 'openUrl', url }))) window.open(url, '_blank', 'noopener'); return OK(); },
     toast(msg) { emit('toast', { msg }); return OK(); },
     vibrate(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch {} return OK(); },
     immersive() { return OK(); },
@@ -144,12 +146,14 @@
   window.FXWeb = {
     login: prof.login || '',
     site: 'Monomach',
+    local: LOCAL,
     upload,
     flush: () => { flushNow(); },
     syncState: () => state,
     onSync(f) { stateFns.push(f); },
     async logout() {
       flushNow();
+      if (LOCAL) { setTimeout(() => mac({ cmd: 'quit' }), 300); return; }
       await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
       Object.keys(LS).filter(k => tracked(k)).forEach(k => oRem.call(LS, k));
       location.replace('/login');

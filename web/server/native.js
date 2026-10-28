@@ -2,6 +2,8 @@
    Пути вида /disk/… — личный диск пользователя; /cloud/<id>/… — подключённые облачные диски. */
 'use strict';
 const path = require('path');
+const fs = require('fs');
+const { spawn } = require('child_process');
 const { LocalDisk, treeSize, err } = require('./localdisk');
 
 const posix = path.posix;
@@ -29,13 +31,26 @@ class UserSpace {
       },
     };
     this.quota = quota;
+    if (ctx.local) {
+      // Mac: диск D: — домашняя папка; свободное место — по самому диску, без подсчёта всех файлов
+      this.diskRoot = ctx.local.home;
+      this.quota = macQuota(this.diskRoot);
+      this.disk = new LocalDisk(this.diskRoot, this.quota);
+      return;
+    }
     this.diskRoot = path.join(ctx.dataDir, 'users', String(user.id), 'disk');
     this.disk = new LocalDisk(this.diskRoot, quota);
   }
 
   /** Все корни: личный диск + облака */
   mounts() {
-    const list = [{ key: 'disk', path: '/disk', label: 'Мой диск', backend: this.disk, local: true }];
+    const list = [{ key: 'disk', path: '/disk', label: this.ctx.local ? 'Этот Mac' : 'Мой диск', backend: this.disk, local: true }];
+    if (this.ctx.local) {
+      // iCloud Drive и внешние диски (/Volumes) — отдельными дисками
+      const icloud = path.join(this.ctx.local.home, 'Library/Mobile Documents/com~apple~CloudDocs');
+      if (fs.existsSync(icloud)) list.push(this.volume('icloud', 'iCloud Drive', icloud, 'cloud'));
+      for (const v of macVolumes()) list.push(this.volume('v-' + v.name, v.name, v.path, 'volume'));
+    }
     if (this.ctx.clouds) for (const m of this.ctx.clouds.forUser(this.user.id)) list.push({ key: 'cloud', path: '/cloud/' + m.id, label: m.label, backend: m.backend, kind: m.kind, letter: m.letter });
     return list;
   }
@@ -50,15 +65,26 @@ class UserSpace {
   async roots() {
     const out = [];
     for (const m of this.mounts()) {
-      if (m.local) {
+      if (m.local && m.root) {
+        const { used, quota } = await m.backend.q.get();
+        out.push({ key: m.key, kind: m.kind, path: m.path, label: m.label, total: quota, free: Math.max(0, quota - used) });
+      } else if (m.local) {
         const { used, quota } = await this.quota.get();
-        out.push({ key: m.key, kind: 'disk', path: m.path, label: m.label, letter: 'D:', total: quota, free: Math.max(0, quota - used) });
+        out.push({ key: m.key, kind: 'disk', path: m.path, label: m.label, letter: 'D:', total: quota, free: Math.max(0, quota - used),
+          ...(this.ctx.local ? { folders: { desktop: 'Desktop', docs: 'Documents', downloads: 'Downloads', pictures: 'Pictures', music: 'Music', videos: 'Movies' }, mac: true } : {}) });
       } else {
         const sp = await this.space(m);
         out.push({ key: m.key, path: m.path, label: m.label, kind: m.kind, letter: m.letter, total: sp ? sp.total : 0, free: sp ? sp.free : 0 });
       }
     }
     return out;
+  }
+
+  volume(key, label, root, kind) {
+    this.vols = this.vols || new Map();
+    let b = this.vols.get(root);
+    if (!b) { b = new LocalDisk(root, macQuota(root), { noCreate: true }); this.vols.set(root, b); }
+    return { key: 'vol', path: '/vol/' + encodeURIComponent(key), label, backend: b, kind, local: true, root };
   }
 
   /** Свободное место облака: кэш на минуту, не дольше 3 с ожидания (иначе — «неизвестно») */
@@ -89,6 +115,38 @@ class UserSpace {
 }
 
 const B64 = s => Buffer.from(String(s || ''), 'base64');
+
+/** Mac: занято/свободно по файловой системе (statfs), кэш на 30 с */
+function macQuota(root) {
+  let c = null;
+  return {
+    get: async () => {
+      if (!c || Date.now() - c.at > 30e3) {
+        const st = await fs.promises.statfs(root).catch(() => null);
+        const total = st ? st.blocks * st.bsize : 0, free = st ? st.bavail * st.bsize : 0;
+        c = { at: Date.now(), v: { used: total - free, quota: total } };
+      }
+      return c.v;
+    },
+    add: () => { c = null; },
+  };
+}
+/** Подключённые к Mac диски, кроме системного */
+function macVolumes() {
+  const out = [];
+  try {
+    const sysDev = fs.statSync('/').dev;
+    for (const n of fs.readdirSync('/Volumes')) {
+      const p = path.join('/Volumes', n);
+      try {
+        const st = fs.statSync(p);
+        if (!st.isDirectory() || st.dev === sysDev) continue;
+        out.push({ name: n, path: p });
+      } catch {}
+    }
+  } catch {}
+  return out;
+}
 
 /** Методы моста; каждый получает UserSpace и аргументы как в Android */
 const API = {
@@ -149,7 +207,12 @@ const API = {
     const res = await r.m.backend.search(r.rel, q, Math.min(limit || 200, 500));
     return res.map(i => ({ n: i.n, d: i.d, s: i.s, m: i.m, p: r.m.path + '/' + i.rel }));
   },
+  /** Mac: открыть файл программой по умолчанию (Word, Preview…) или показать в Finder */
+  openExternal: async (s, np) => { if (!s.ctx.local) throw err('ENOSYS'); const r = s.resolve(np); macOpen([r.m.backend.abs(r.rel)]); },
+  reveal: async (s, np) => { if (!s.ctx.local) throw err('ENOSYS'); const r = s.resolve(np); macOpen(['-R', r.m.backend.abs(r.rel)]); },
   usage: async (s, np) => { const r = s.resolve(np); return r.m.backend.usage ? r.m.backend.usage(r.rel) : { files: 0, dirs: 0, size: 0 }; },
 };
+
+function macOpen(args) { try { spawn('/usr/bin/open', args, { stdio: 'ignore', detached: true }).unref(); } catch (e) { throw err('EIO', e.message); } }
 
 module.exports = { UserSpace, API };
