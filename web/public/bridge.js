@@ -154,6 +154,13 @@
     async logout() {
       flushNow();
       if (LOCAL) { setTimeout(() => mac({ cmd: 'quit' }), 300); return; }
+      // внутри Windows App (RDP): «Выйти» закрывает сам сеанс удалённого рабочего стола
+      const ri = await fetch('/api/rdp/info', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
+      if (ri && ri.session) {
+        await fetch('/api/rdp/end', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+        document.body.innerHTML = '<div style="position:fixed;inset:0;display:grid;place-items:center;background:#1f1e1d;color:#faf9f5;font:20px system-ui,sans-serif">Сеанс завершается…</div>';
+        return;
+      }
       await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
       Object.keys(LS).filter(k => tracked(k)).forEach(k => oRem.call(LS, k));
       location.replace('/login');

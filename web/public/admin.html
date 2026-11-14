@@ -164,6 +164,7 @@
     admin_block: ['Заблокирован', 'bad'], admin_unblock: ['Разблокирован', 'ok'], admin_password: ['Пароль сброшен', 'warn'], admin_quota: ['Изменён лимит', ''],
     admin_logout_user: ['Сеансы завершены', ''], admin_delete: ['Удалён', 'bad'], admin_settings: ['Настройки сервера', ''],
     cloud_add: ['Подключён диск', ''], cloud_remove: ['Отключён диск', ''], rdp_connect: ['Удалённый рабочий стол', ''],
+    rdp_auth: ['Вход через RDP', 'ok'], rdp_login_fail: ['Неудачный вход RDP', 'bad'], rdp_end: ['Сеанс RDP завершён', ''], admin_rdp: ['Доступ к RDP', 'warn'], admin_rdp_end: ['RDP закрыт администратором', ''],
   };
   const typeChip = t => { const x = TYPES[t] || [t, '']; return `<span class="chip ${x[1]}">${esc(x[0])}</span>`; };
   const CLOUD = { webdav: 'WebDAV', yandex: 'Яндекс Диск', mailru: 'Облако Mail.ru', gdrive: 'Google Диск' };
@@ -239,6 +240,7 @@
         <div class="card stat"><small>Неудачных попыток за сутки</small><b style="${o.fails24 ? 'color:var(--err)' : ''}">${o.fails24}</b></div>
         <div class="card stat"><small>Занято на дисках пользователей</small><b>${fmtB(o.storageUsed)}</b><span>из ${fmtB(o.storageQuota)}</span></div>
         <div class="card stat"><small>Подключено облачных дисков</small><b>${o.mounts}</b></div>
+        ${o.rdp && o.rdp.installed ? `<div class="card stat"><small>Сеансов RDP сейчас</small><b>${o.rdp.active.length}</b><span>из ${o.rdp.max}${o.rdp.enabled ? '' : ' · выключено'}</span></div>` : ''}
       </div>
       <div class="row2">
         <div class="card"><h3>Посещаемость за 14 дней</h3><div class="chart" role="img" aria-label="Входы и регистрации по дням">${chart}</div>
@@ -267,7 +269,7 @@
         <select id="usort"><option value="seen">Сначала активные</option><option value="created">Сначала новые</option><option value="login">По имени</option><option value="used">По занятому месту</option></select></div>
       <div class="tbl"><table><thead><tr><th>Имя</th><th>Последняя активность</th><th class="hide-sm">Зарегистрирован</th><th class="hide-sm">Входов</th><th>Диск</th><th class="hide-sm">Последний IP / браузер</th></tr></thead><tbody>
       ${list.map(u => `<tr class="click" data-u="${u.id}">
-        <td><b>${esc(u.login)}</b> ${u.blocked ? '<span class="chip bad">заблокирован</span>' : ''}${u.mounts.length ? `<div class="muted" style="font-size:12px">${u.mounts.map(m => CLOUD[m] || m).join(', ')}</div>` : ''}</td>
+        <td><b>${esc(u.login)}</b> ${u.blocked ? '<span class="chip bad">заблокирован</span>' : ''}${u.rdpActive ? ' <span class="chip ok">RDP</span>' : ''}${u.mounts.length ? `<div class="muted" style="font-size:12px">${u.mounts.map(m => CLOUD[m] || m).join(', ')}</div>` : ''}</td>
         <td>${u.last_seen && now - u.last_seen < 5 * 60e3 ? '<span class="dot"></span>в сети' : ago(u.last_seen)}</td>
         <td class="hide-sm">${fmtT(u.created)}</td><td class="hide-sm">${u.logins}</td>
         <td>${fmtB(u.used)} <span class="muted">из ${fmtB(u.quota)}</span><div class="bar"><i style="width:${Math.min(100, u.used / u.quota * 100)}%"></i></div></td>
@@ -294,6 +296,8 @@
         <button class="btn" data-a="password">Сбросить пароль</button>
         <button class="btn" data-a="quota">Изменить лимит диска</button>
         <button class="btn" data-a="logout">Завершить все сеансы</button>
+        ${u.rdpUser ? (u.rdp ? '<button class="btn" data-a="rdp-off">Запретить вход через RDP</button>' : '<button class="btn" data-a="rdp-on">Разрешить вход через RDP</button>') : ''}
+        ${u.rdpActive ? '<button class="btn" data-a="rdp_end">Закрыть сеанс RDP</button>' : ''}
         <button class="btn danger" data-a="delete">Удалить</button>
       </div>
       <div class="card"><dl>
@@ -303,6 +307,7 @@
         <dt>Браузер и система</dt><dd>${esc(u.last_ua)}</dd>
         <dt>Диск</dt><dd>${fmtB(u.used)} из ${fmtB(u.quota)}${u.files ? ` · файлов: ${u.files.files}, папок: ${u.files.dirs}` : ''}<div class="bar"><i style="width:${Math.min(100, u.used / u.quota * 100)}%"></i></div></dd>
         <dt>Профиль (настройки)</dt><dd>${u.profile ? fmtB(u.profile.size) + ', сохранён ' + ago(u.profile.updated) : '—'}</dd>
+        ${u.rdpUser ? `<dt>Вход через RDP</dt><dd>имя <b>${esc(u.rdpUser)}</b> · ${u.rdp ? 'разрешён' : 'запрещён'}${u.rdpActive ? ' · <span class="chip ok">сейчас подключён</span>' : ''}</dd>` : ''}
         <dt>Облачные диски</dt><dd>${u.mounts.length ? u.mounts.map(m => `${esc(CLOUD[m.kind] || m.kind)}: ${esc(m.label)}${m.username ? ' (' + esc(m.username) + ')' : ''}`).join('<br>') : 'не подключены'}</dd>
         <dt>Заметка</dt><dd><textarea id="note" rows="2" style="width:100%" placeholder="Видна только администратору">${esc(u.note)}</textarea></dd>
       </dl></div>
@@ -313,7 +318,8 @@
     let nt;
     $('#note', B).oninput = e => { clearTimeout(nt); nt = setTimeout(() => api('users/' + id, { method: 'POST', body: { action: 'note', note: e.target.value } }).then(() => toast('Заметка сохранена')), 600); };
     B.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
-      const a = b.dataset.a, body = { action: a };
+      let a = b.dataset.a; const body = { action: a };
+      if (a === 'rdp-on' || a === 'rdp-off') { body.action = 'rdp'; body.on = a === 'rdp-on'; }
       if (a === 'block' && !confirm(`Заблокировать ${u.login}? Все его сеансы будут завершены.`)) return;
       if (a === 'password') {
         const p = prompt('Новый пароль (не короче 8 символов). Оставьте пустым — будет создан случайный.', '');
@@ -386,12 +392,23 @@
         <div class="form-row"><label for="reg">Новые пользователи</label><select id="reg"><option value="open">Могут регистрироваться сами</option><option value="closed">Регистрация закрыта</option></select></div>
         <div class="form-row"><label for="quota">Лимит диска для новых, МБ</label><input id="quota" type="number" min="10" step="1" value="${Math.round(s.settings.defaultQuota / 1048576)}" style="max-width:160px"></div>
         <button class="btn pri" id="save1">Сохранить</button></div>
+      ${s.rdp ? `<div class="sect card"><h3>Вход через Windows App (RDP)</h3>
+        ${s.rdp.installed ? `<p class="muted">Адрес для подключения: <b>${esc(s.rdp.host)}${s.rdp.port === 3389 ? '' : ':' + s.rdp.port}</b> · сейчас подключено: ${s.rdp.active.length}${s.rdp.active.length ? ' (' + s.rdp.active.map(esc).join(', ') + ')' : ''}</p>
+        <div class="form-row"><label for="rdp">Вход через RDP</label><select id="rdp"><option value="on">Включён</option><option value="off">Выключен (сеансы закрываются)</option></select></div>
+        <div class="form-row"><label for="rdpdef">Новым пользователям</label><select id="rdpdef"><option value="on">Разрешён</option><option value="off">Запрещён (разрешайте по одному)</option></select></div>
+        <div class="form-row"><label for="rdpmax">Одновременных сеансов, не больше</label><input id="rdpmax" type="number" min="1" max="1000" value="${s.rdp.max}" style="max-width:160px"></div>
+        <p class="muted" style="font-size:12px">Каждый сеанс — это браузер на сервере: примерно 0,5–1 ГБ памяти и часть ядра процессора.</p>
+        <button class="btn pri" id="save3">Сохранить</button>` : '<p class="muted">Не установлен. Установка: <code>install.sh домен --rdp</code> (см. web/README.md).</p>'}</div>` : ''}
       <div class="sect card"><h3>Учётная запись администратора</h3>
         <div class="form-row"><label for="alogin">Логин</label><input id="alogin" value="${esc(s.settings.adminLogin)}" autocomplete="username" style="max-width:280px"></div>
         <div class="form-row"><label for="acur">Текущий пароль</label><input id="acur" type="password" autocomplete="current-password" style="max-width:280px"></div>
         <div class="form-row"><label for="anew">Новый пароль (от 10 символов)</label><input id="anew" type="password" autocomplete="new-password" style="max-width:280px"></div>
         <button class="btn pri" id="save2">Сменить пароль</button></div>`;
     $('#reg').value = s.settings.registration;
+    if (s.rdp && s.rdp.installed) {
+      $('#rdp').value = s.rdp.enabled ? 'on' : 'off'; $('#rdpdef').value = s.rdp.defaultAllow ? 'on' : 'off';
+      $('#save3').onclick = async () => { try { await api('settings', { method: 'POST', body: { rdp: $('#rdp').value, rdpDefault: $('#rdpdef').value, rdpMax: +$('#rdpmax').value } }); toast('Сохранено'); } catch (e) { alert(e.message); } };
+    }
     $('#save1').onclick = async () => { try { await api('settings', { method: 'POST', body: { registration: $('#reg').value, defaultQuotaMb: +$('#quota').value } }); toast('Сохранено'); } catch (e) { alert(e.message); } };
     $('#save2').onclick = async () => {
       try { await api('settings', { method: 'POST', body: { newLogin: $('#alogin').value.trim(), currentPassword: $('#acur').value, newPassword: $('#anew').value } }); toast('Пароль администратора изменён'); $('#acur').value = $('#anew').value = ''; }
