@@ -17,7 +17,8 @@ const MEM = conf.RDP_MEMORY_MAX || '1536M';
 const CPU = conf.RDP_CPU_QUOTA || '150%';
 
 const run = (cmd, args) => spawnSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-const NAME_RE = /^[a-z][a-z0-9_-]{2,31}$/;
+// основное имя — маленькими буквами; псевдоним (alias) может быть с заглавными, как имя на сайте: Arsen
+const NAME_RE = /^[A-Za-z][A-Za-z0-9_-]{2,31}$/;
 
 if (run('getent', ['group', GROUP]).status !== 0) execFileSync('groupadd', ['--system', GROUP]);
 fs.mkdirSync(HOME, { recursive: true, mode: 0o711 });
@@ -35,7 +36,10 @@ let created = 0, removed = 0, reload = false;
 for (const [name, u] of wanted) {
   if (members.has(name)) continue;
   if (run('id', [name]).status === 0) { console.error(`skip ${name}: системный пользователь с таким именем уже есть`); continue; }
-  const r = run('useradd', ['--no-create-home', '--home-dir', `${HOME}/${name}`, '--shell', '/bin/bash', '--gid', GROUP, '--comment', `Monomach #${u.id}`, name]);
+  const args = ['--no-create-home', '--home-dir', `${HOME}/${name}`, '--shell', '/bin/bash', '--gid', GROUP, '--comment', `Monomach #${u.id}${u.alias ? ' (alias)' : ''}`, name];
+  // заглавные буквы useradd пропускает только с --badname (Ubuntu 24.04) / --badnames (Ubuntu 22.04)
+  let r = run('useradd', /[A-Z]/.test(name) ? ['--badname', ...args] : args);
+  if (r.status !== 0 && /[A-Z]/.test(name)) r = run('useradd', ['--badnames', ...args]);
   if (r.status !== 0) { console.error(`useradd ${name}:`, r.stderr.toString().trim()); continue; }
   created++;
 }
