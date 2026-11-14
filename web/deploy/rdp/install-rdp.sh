@@ -4,6 +4,8 @@
 #   с рабочим столом пользователя. Учётные записи Linux создаёт rdp-sync.js по списку с сайта.
 # Переменные: DOMAIN, IPMODE (0/1), APP (/opt/monomach), DATA, ENVF — их передаёт install.sh.
 set -euo pipefail
+# если что-то пойдёт не так — показать, на каком шаге (установка безопасна для повторного запуска)
+trap 'echo "!! Установка RDP остановилась: строка $LINENO: $BASH_COMMAND"; echo "   Исправьте причину и запустите скрипт ещё раз."' ERR
 
 APP="${APP:-/opt/monomach}"
 DATA="${DATA:-/var/lib/monomach}"
@@ -29,6 +31,9 @@ if ! command -v google-chrome-stable >/dev/null; then
     echo "!! Для $ARCH нет Google Chrome. Установите Chromium из deb-пакета (не snap) и запустите скрипт снова."; exit 1
   fi
 fi
+# Если сеанс не запустится, xrdp открывает вместо него терминал xterm — то есть командную строку сервера.
+# Убираем xterm: при сбое сеанс просто закроется.
+if dpkg -s xterm >/dev/null 2>&1; then apt-get remove -y -qq xterm >/dev/null; fi
 locale -a 2>/dev/null | grep -qi '^ru_RU.utf8$' || { sed -i 's/^# *ru_RU.UTF-8/ru_RU.UTF-8/' /etc/locale.gen; locale-gen >/dev/null; }
 
 # Настройки сайта для RDP

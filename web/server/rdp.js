@@ -13,6 +13,9 @@ const crypto = require('crypto');
 
 const RESERVED = /^(root|daemon|bin|sys|sync|games|man|lp|mail|news|uucp|proxy|www-data|backup|list|irc|gnats|nobody|messagebus|syslog|ubuntu|debian|admin|administrator|caddy|monomach|xrdp|sshd|polkitd|tss|uuidd|tcpdump|landscape|lxd|usbmux|dnsmasq|avahi|pulse|rtkit|colord|geoclue|chrony|ntp|postfix|mysql|postgres|redis|node|docker|guest|user|test|support|systemd-.*|_.*)$/;
 const NAME_RE = /^[a-z][a-z0-9_-]{2,31}$/;
+// имя, введённое в Windows App: может быть с заглавными (Arsen) — Linux различает регистр, поэтому для имени
+// с заглавными буквами создаётся вторая учётная запись Linux (псевдоним), ведущая в тот же аккаунт сайта
+const TYPED_RE = /^[A-Za-z][A-Za-z0-9_-]{2,31}$/;
 
 module.exports = function (D) {
   const { db, CFG, A, json, readJSON, send, logEvent, setting, setSetting, ip } = D;
@@ -65,6 +68,12 @@ module.exports = function (D) {
     return n;
   }
 
+  /** Псевдоним с заглавными буквами — как имя на сайте (Arsen), если основное имя — оно же маленькими буквами. */
+  function aliasFor(u) {
+    const n = nameFor(u);
+    return TYPED_RE.test(u.login) && u.login !== n && u.login.toLowerCase() === n ? u.login : null;
+  }
+
   // ---------- список учётных записей для rdp-sync (служба root создаёт и удаляет пользователей Linux)
   let syncT = null;
   function sync() {
@@ -75,7 +84,7 @@ module.exports = function (D) {
         .filter(u => u.login !== 'mac')
         .map(u => ({ u, name: nameFor(u) }))
         .filter(x => allowedFor(x.u))
-        .map(x => ({ name: x.name, id: x.u.id }));
+        .flatMap(x => { const a = aliasFor(x.u); return [{ name: x.name, id: x.u.id }, ...(a ? [{ name: a, id: x.u.id, alias: true }] : [])]; });
       const f = path.join(R.dir, 'users.json');
       fs.writeFileSync(f + '.tmp', JSON.stringify({ updated: Date.now(), users: list }), { mode: 0o600 });
       fs.renameSync(f + '.tmp', f);
@@ -107,13 +116,15 @@ module.exports = function (D) {
   async function auth(req, res) {
     if (!fromLocal(req) || !sameSecret(req.headers['x-rdp-secret'])) return json(res, 403, { error: 'forbidden' });
     const b = await readJSON(req, 16e3);
-    const name = String(b.user || '').trim().toLowerCase(), pw = String(b.password || '');
+    const typed = String(b.user || '').trim(), name = typed.toLowerCase(), pw = String(b.password || '');
     const keys = ['rdp:u:' + name, ...(b.rhost ? ['rdp:ip:' + String(b.rhost)] : [])];
     const meta = { id: null, login: name };
     const reqLike = { headers: { 'user-agent': 'Windows App (RDP)', 'x-forwarded-for': b.rhost || '' }, socket: req.socket };
     if (!enabled()) return json(res, 403, { error: 'Вход через RDP выключен.' });
     if (limiter.blocked(...keys)) { logEvent('rdp_login_fail', reqLike, meta, 'слишком много попыток'); return json(res, 429, { error: 'Слишком много попыток.' }); }
-    const u = db.prepare('SELECT * FROM users WHERE rdp_user=?').get(name);
+    let u = db.prepare('SELECT * FROM users WHERE rdp_user=?').get(name);
+    // имя с заглавными принимается, только если для него создан псевдоним (Arsen → arsen)
+    if (u && typed !== name && aliasFor(u) !== typed) u = null;
     if (!u || !A.checkPassword(pw, u.pass)) {
       limiter.fail(...keys);
       logEvent('rdp_login_fail', reqLike, u || meta, u ? 'неверный пароль' : 'нет такого пользователя');
@@ -153,8 +164,9 @@ module.exports = function (D) {
   /** rdp-session спрашивает раз в несколько секунд: продолжать или закрыть сеанс. */
   function state(req, res, url) {
     if (!fromLocal(req)) return send(res, 403, 'forbidden');
-    const name = String(url.searchParams.get('user') || '').toLowerCase();
-    if (!NAME_RE.test(name)) return json(res, 400, { error: 'user' });
+    const typed = String(url.searchParams.get('user') || '');
+    if (!TYPED_RE.test(typed)) return json(res, 400, { error: 'user' });
+    const name = typed.toLowerCase();
     const end = ending.has(name) || !enabled();
     if (end) { ending.delete(name); alive.delete(name); } else alive.set(name, Date.now());
     json(res, 200, { end });

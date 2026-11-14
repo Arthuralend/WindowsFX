@@ -11,7 +11,7 @@ const { execFileSync } = require('child_process');
 const fail = msg => { if (msg) console.error('monomach-rdp-auth:', msg); process.exit(1); };
 if (process.env.PAM_TYPE && process.env.PAM_TYPE !== 'auth') process.exit(0);
 const user = String(process.env.PAM_USER || '');
-if (!/^[a-z][a-z0-9_-]{2,31}$/.test(user)) fail('bad user');
+if (!/^[A-Za-z][A-Za-z0-9_-]{2,31}$/.test(user)) fail('bad user');
 
 const conf = {};
 try { fs.readFileSync(process.env.MONOMACH_ENV || '/etc/monomach.env', 'utf8').split('\n').forEach(l => { const m = /^\s*([A-Z_]+)=(.*)$/.exec(l); if (m) conf[m[1]] = m[2].trim(); }); } catch {}
