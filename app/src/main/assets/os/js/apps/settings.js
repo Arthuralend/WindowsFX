@@ -508,7 +508,7 @@ function openSettings(args = {}) {
         row('eye', 'Эффекты прозрачности', 'Полупрозрачные окна и панели с размытием', tgl('transparency')),
         row('display', 'Цвет акцента на заголовках окон', 'Подсвечивать заголовок активного окна', tgl('accentTitlebars')));
       const s2 = sec('Цвет акцента');
-      const COLORS = ['#ffb900', '#ff8c00', '#f7630c', '#ca5010', '#da3b01', '#ef6950', '#d13438', '#ff4343', '#e74856', '#e81123', '#ea005e', '#c30052', '#e3008c', '#bf0077', '#c239b3', '#9a0089', '#0078d4', '#4f8cff', '#0099bc', '#2d7d9a', '#00b7c3', '#038387', '#00b294', '#018574', '#00cc6a', '#10893e', '#7a7574', '#5d5a58', '#68768a', '#515c6b', '#8764b8', '#744da9', '#b146c2', '#881798', '#6b69d6', '#a35cff'];
+      const COLORS = ['#d97757', '#c15f3c', '#bd5d3a', '#e8a948', '#7fb069', '#6a9bcc', '#9c87c4', '#73726c', '#ffb900', '#ff8c00', '#f7630c', '#ca5010', '#da3b01', '#ef6950', '#d13438', '#ff4343', '#e74856', '#e81123', '#ea005e', '#c30052', '#e3008c', '#bf0077', '#c239b3', '#9a0089', '#0078d4', '#4f8cff', '#0099bc', '#2d7d9a', '#00b7c3', '#038387', '#00b294', '#018574', '#00cc6a', '#10893e', '#7a7574', '#5d5a58', '#68768a', '#515c6b', '#8764b8', '#744da9', '#b146c2', '#881798', '#6b69d6', '#a35cff'];
       const card = h('<div class="st-card"><div class="st-colors"></div><div class="row-gap" style="margin-top:14px"><span>Свой цвет:</span><input type="color" class="input st-custom-color"></div></div>');
       COLORS.forEach(c => {
         const sw = h(`<button class="st-color ${Store.get('accent').toLowerCase() === c ? 'on' : ''}" style="background:${c}" title="${c}"></button>`);
@@ -525,6 +525,7 @@ function openSettings(args = {}) {
     themes() {
       pg.append(header('Темы', 'Персонализация'));
       const THEMES = [
+        ['Claude (тёмная)', 'claude', 'dark', '#d97757'], ['Claude (светлая)', 'claude', 'light', '#c15f3c'], ['Глина', 'clay', 'light', '#c15f3c'], ['Пергамент', 'parchment', 'light', '#d97757'],
         ['Windows (тёмная)', 'bloom', 'dark', '#4f8cff'], ['Windows (светлая)', 'bloom', 'light', '#0078d4'], ['Северное сияние', 'aurora', 'dark', '#00b294'],
         ['Закат', 'sunset', 'dark', '#ff8c00'], ['Туманность', 'nebula', 'dark', '#e3008c'], ['Пастель', 'mint', 'light', '#8764b8'],
         ['Горы', 'mountains', 'dark', '#ef6950'], ['Океан', 'ocean', 'dark', '#00b7c3'], ['Графит', 'graphite', 'dark', '#7a7574'],

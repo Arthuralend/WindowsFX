@@ -6,9 +6,9 @@ const Store = (() => {
   const defaults = {
     // Персонализация
     theme: 'dark',              // dark | light | auto
-    accent: '#7c6cff',
+    accent: '#d97757',
     accentAuto: false,
-    wallpaper: 'fx',
+    wallpaper: 'claude',
     customWallpaper: null,
     transparency: true,
     animations: true,
@@ -35,7 +35,7 @@ const Store = (() => {
     // Учётная запись
     userName: 'Пользователь',
     avatar: null,
-    avatarColor: '#7a5cff',
+    avatarColor: '#d97757',
     password: '',
     lockOnStart: false,
     lockTimeout: 0,
@@ -85,7 +85,12 @@ const Store = (() => {
     data.defaultApps = { ...defaults.defaultApps, ...(data.defaultApps || {}) };
     if (data.defaultApps.psd === 'prism') data.defaultApps.psd = 'photostore';
     if (Array.isArray(data.startPinned)) for (const id of ['winarch', 'fxplayer', 'reminders', 'things', 'lines', 'timematrix']) if (!data.startPinned.includes(id) && !(data.migrated || []).includes(id)) data.startPinned.push(id);
-    data.migrated = [...new Set([...(data.migrated || []), 'winarch', 'fxplayer', 'reminders', 'things', 'lines', 'timematrix'])];
+    if (!(data.migrated || []).includes('claude-design')) {
+      if (!data.accent || data.accent.toLowerCase() === '#7c6cff') data.accent = defaults.accent;
+      if (!data.wallpaper || data.wallpaper === 'fx') data.wallpaper = defaults.wallpaper;
+      if (!data.avatarColor || data.avatarColor.toLowerCase() === '#7a5cff') data.avatarColor = defaults.avatarColor;
+    }
+    data.migrated = [...new Set([...(data.migrated || []), 'claude-design', 'winarch', 'fxplayer', 'reminders', 'things', 'lines', 'timematrix'])];
   })();
 
   const em = new Emitter();
@@ -98,7 +103,7 @@ const Store = (() => {
       console.warn(e);
       if (data.customWallpaper) {
         data.customWallpaper = null;
-        if (data.wallpaper === 'custom') data.wallpaper = 'bloom';
+        if (data.wallpaper === 'custom') data.wallpaper = 'claude';
         try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
         typeof UI !== 'undefined' && UI.notify({ title: 'Не удалось сохранить обои', body: 'Изображение слишком большое для хранилища браузера.', icon: 'settings' });
       }
