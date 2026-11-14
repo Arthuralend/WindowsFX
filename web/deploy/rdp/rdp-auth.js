@@ -39,7 +39,8 @@ const req = http.request({ host: '127.0.0.1', port: PORT, path: '/api/rdp/auth',
       fs.mkdirSync(dir, { recursive: true, mode: 0o711 });
       fs.chmodSync(dir, 0o711);
       const f = `${dir}/${user}.token`;
-      fs.writeFileSync(f, j.token, { mode: 0o600 });
+      // одноразовый ключ входа и ключ сеанса (повторный вход, если браузер перезапустится)
+      fs.writeFileSync(f, j.token + '\n' + (j.key || '') + '\n', { mode: 0o600 });
       const uid = +execFileSync('/usr/bin/id', ['-u', user]).toString().trim();
       const gid = +execFileSync('/usr/bin/id', ['-g', user]).toString().trim();
       fs.chownSync(f, uid, gid);

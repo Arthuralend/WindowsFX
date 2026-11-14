@@ -18,3 +18,20 @@
 .ex-drive-add { border-style: dashed !important; opacity: .9; }
 .ex-drive-add:hover { opacity: 1; }
 .dlg.wide:has(.wd-pick) { width: min(620px, 94vw); }
+
+/* Сеанс Windows App (RDP). Видеокарты на сервере нет: каждый кадр рисует процессор, а xrdp передаёт изменившиеся
+   части экрана картинками. Размытие, полупрозрачность, анимации, большие тени и фильтры здесь стоят дорого —
+   в сеансе RDP они выключены (в браузере всё как обычно). */
+html.rdp {
+  --glass: var(--surface-2); --glass-strong: var(--surface-2); --glass-light: var(--surface-3); --win-bg: var(--surface-2);
+  --blur: none;
+  --shadow-sm: 0 0 0 1px var(--line); --shadow: 0 0 0 1px var(--line-2); --shadow-lg: 0 0 0 1px var(--line-2);
+}
+html.rdp *, html.rdp *::before, html.rdp *::after {
+  transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important; scroll-behavior: auto !important;
+}
+html.rdp .spinner i { animation-duration: 2.2s !important; }
+html.rdp .win, html.rdp .win.active, html.rdp #taskbar, html.rdp .flyout, html.rdp .ctx-menu, html.rdp .toast { box-shadow: 0 0 0 1px var(--line-2) !important; }
+html.rdp .dicon .icon, html.rdp .tb-btn .icon { filter: none !important; }
+html.rdp #wallpaper.animated { animation: none !important; }

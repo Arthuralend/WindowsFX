@@ -94,6 +94,9 @@ module.exports = function (D) {
 
   // ---------- одноразовые ключи входа и живые сеансы
   const tickets = new Map();   // sha256(ключ) → { uid, name, exp }
+  // ключ сеанса: повторный вход браузера, если он перезапустился внутри того же сеанса RDP (до «Выйти» или 24 ч)
+  const sessionKeys = new Map(); // sha256(ключ) → { uid, name, exp }
+  const dropKeys = name => { for (const [k, v] of sessionKeys) if (v.name === name) sessionKeys.delete(k); };
   const alive = new Map();     // имя → время последнего сигнала из сеанса
   const ending = new Set();    // имена сеансов, которые надо закрыть
   const ACTIVE_MS = 20e3;
@@ -101,6 +104,7 @@ module.exports = function (D) {
   setInterval(() => {
     const now = Date.now();
     for (const [k, t] of tickets) if (t.exp < now) tickets.delete(k);
+    for (const [k, t] of sessionKeys) if (t.exp < now) sessionKeys.delete(k);
     for (const [n, t] of alive) if (now - t > 10 * 60e3) alive.delete(n);
   }, 60e3).unref();
 
@@ -136,19 +140,20 @@ module.exports = function (D) {
     if (!act.includes(name) && act.length >= maxSessions()) { logEvent('rdp_login_fail', reqLike, u, 'нет свободных мест'); return json(res, 503, { error: 'Все места для входа через RDP сейчас заняты. Попробуйте позже или войдите через браузер.' }); }
     limiter.reset(keys[0]);
     ending.delete(name);
-    const t = A.newToken();
+    const t = A.newToken(), key = A.newToken();
     tickets.set(A.tokenId(t), { uid: u.id, name, exp: Date.now() + 5 * 60e3 });
+    sessionKeys.set(A.tokenId(key), { uid: u.id, name, exp: Date.now() + 24 * 3600e3 });
     alive.set(name, Date.now());
     logEvent('rdp_auth', reqLike, u);
-    json(res, 200, { ok: true, token: t });
+    json(res, 200, { ok: true, token: t, key });
   }
 
   /** Chromium в сеансе RDP: одноразовый ключ → обычный сеанс сайта (cookie) → рабочий стол. */
   function enter(req, res, url) {
     if (!fromLocal(req)) return send(res, 403, 'forbidden');
-    const k = A.tokenId(url.searchParams.get('t') || '');
-    const t = tickets.get(k);
-    tickets.delete(k);
+    let t;
+    if (url.searchParams.has('k')) t = sessionKeys.get(A.tokenId(url.searchParams.get('k')));
+    else { const k = A.tokenId(url.searchParams.get('t') || ''); t = tickets.get(k); tickets.delete(k); }
     if (!t || t.exp < Date.now()) return send(res, 403, 'Ключ входа устарел. Подключитесь заново.');
     const u = db.prepare('SELECT * FROM users WHERE id=?').get(t.uid);
     if (!u || u.blocked) return send(res, 403, 'Учётная запись недоступна.');
@@ -168,7 +173,7 @@ module.exports = function (D) {
     if (!TYPED_RE.test(typed)) return json(res, 400, { error: 'user' });
     const name = typed.toLowerCase();
     const end = ending.has(name) || !enabled();
-    if (end) { ending.delete(name); alive.delete(name); } else alive.set(name, Date.now());
+    if (end) { ending.delete(name); alive.delete(name); dropKeys(name); } else alive.set(name, Date.now());
     json(res, 200, { end });
   }
 
@@ -221,7 +226,7 @@ module.exports = function (D) {
     }
     if (p === '/api/rdp/end' && req.method === 'POST') {
       // «Завершить сеанс» из рабочего стола внутри RDP
-      if (u.rdp_user) ending.add(u.rdp_user);
+      if (u.rdp_user) { ending.add(u.rdp_user); dropKeys(u.rdp_user); }
       if (u.via === 'rdp') db.prepare('DELETE FROM sessions WHERE token=?').run(u.session);
       logEvent('rdp_end', req, u);
       json(res, 200, { ok: true });
@@ -242,7 +247,7 @@ module.exports = function (D) {
     },
     userRow: u => ({ rdpUser: u.rdp_user || null, rdp: allowedFor(u), rdpActive: !!u.rdp_user && activeNames().includes(u.rdp_user) }),
     setAllowed(id, on) { db.prepare('UPDATE users SET rdp=? WHERE id=?').run(on ? 1 : 0, id); sync(); },
-    end(id) { const u = db.prepare('SELECT rdp_user FROM users WHERE id=?').get(id); if (u && u.rdp_user) ending.add(u.rdp_user); },
+    end(id) { const u = db.prepare('SELECT rdp_user FROM users WHERE id=?').get(id); if (u && u.rdp_user) { ending.add(u.rdp_user); dropKeys(u.rdp_user); } },
     changed: sync,
   };
 
