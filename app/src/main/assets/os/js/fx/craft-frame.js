@@ -25,6 +25,15 @@
   } catch (e) {}
   document.documentElement.style.background = '#1e1e1e';
 
+  // 0c) Общий буфер обмена с Android: копирование в Lexicon / Tabs / Photostore попадает в буфер Android
+  //     (таблицы — вместе с HTML), «Вставить из буфера Android» в заголовке окна вставляет скопированное
+  //     в других приложениях. До запуска движка — он берёт navigator.clipboard при каждом копировании.
+  try { if (window.parent !== window && window.parent.FXClip) window.parent.FXClip.install(window); } catch (e) {}
+  window.CraftGuest = window.CraftGuest || {};
+  window.CraftGuest.paste = function () {
+    try { return !!(window.parent.FXClip && window.parent.FXClip.pasteInto(document)); } catch (e) { return false; }
+  };
+
   // 5) Клавиши навигации от Android (стрелки, PageUp/Down, Home/End, Tab, Esc, Del) — прямо на холст
   window.CraftGuest = window.CraftGuest || {};
   window.CraftGuest.key = function (type, key, code, shift, ctrl, alt, meta) {

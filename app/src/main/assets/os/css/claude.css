@@ -1,0 +1,79 @@
+/* ===== Оформление в стиле Claude =====
+   Подключается последним и перекрывает «виндовые» детали оболочки:
+   матовые поверхности вместо стекла, мягкие скругления, серифные заголовки,
+   поля ввода с рамкой и кольцом фокуса вместо подчёркивания. */
+
+/* --- Типографика: заголовки — серифом, как в Claude --- */
+.st-h1, .rm-title, .tg-head h1, .fx-access h2, .ph2-info h3, .br-page h1,
+.sm-section-head > span:first-child, .sm-section-head > b,
+.ls-clock .t, .wg-time, .cl-m, .ck-tt, .ck-city b, .wx-temp, .br-nt-time {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -.01em;
+}
+.st-h1 { font-size: 2rem; }
+.ls-clock .t { font-weight: 400; letter-spacing: -1px; }
+.sm-section-head { font-family: var(--font-serif); font-weight: 500; font-size: 1.08rem; }
+.sm-section-head .btn { font-family: var(--font); }
+
+/* --- Стекло → матовые тёплые поверхности --- */
+.glass { box-shadow: var(--shadow), var(--edge); }
+#taskbar {
+  border-radius: 18px;
+  background: var(--glass-strong);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .22), 0 0 0 1px var(--line);
+}
+#start-menu, #quick-settings, #widgets-panel { border-radius: 20px; }
+.sm-footer { background: transparent !important; border-top: 1px solid var(--line); }
+
+/* Индикаторы запущенных приложений — точка акцентного цвета */
+.tb-btn { border-radius: 10px; }
+.tb-btn.active::after { width: 6px; height: 6px; border-radius: 50%; }
+
+/* --- Окна --- */
+.win { border-radius: 14px; box-shadow: 0 10px 32px rgba(0, 0, 0, .22), 0 0 0 1px var(--line-2); }
+.win-titlebar { border-radius: 14px 14px 0 0; }
+html[data-theme="dark"] .win.active { box-shadow: var(--shadow-lg), 0 0 0 1px rgba(222, 220, 209, .16); }
+html.accent-titlebars .win.active .win-titlebar { background: var(--surface-3); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* --- Кнопки: плоские, с мягкой рамкой --- */
+.btn { border-radius: 9px; font-weight: 500; }
+.btn.primary { background: var(--accent); box-shadow: 0 1px 0 rgba(0, 0, 0, .08); }
+.btn.primary:hover { filter: none; background: var(--claude-clay-deep); }
+html[data-theme="dark"] .btn:not(.primary):not(.danger):not(.subtle) { background: var(--surface-3); border-color: var(--line-2); }
+
+/* --- Поля ввода: рамка + кольцо фокуса (вместо подчёркивания в стиле Windows) --- */
+.input { border-radius: 10px; border-bottom-color: var(--input-border); }
+.input:focus {
+  border: 1px solid rgba(var(--accent-rgb), .7);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .18);
+  background: var(--surface-2);
+}
+.sm-search-box { border-radius: 14px !important; border-bottom: 1px solid var(--input-border) !important; }
+.sm-search-box:focus-within { box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .18) !important; border-color: rgba(var(--accent-rgb), .6) !important; }
+
+/* --- Переключатели: «таблетка» как в Claude --- */
+.toggle .track { width: 38px; height: 22px; border-radius: 11px; border-color: var(--line-2); background: var(--surface-4); }
+.toggle .track::after { top: 3px; left: 3px; width: 14px; height: 14px; background: var(--fg); box-shadow: 0 1px 2px rgba(0, 0, 0, .2); }
+.toggle:hover .track::after { width: 14px; }
+.toggle input:checked + .track::after { transform: translateX(16px); background: #fff; }
+.toggle:hover input:checked + .track::after { transform: translateX(16px); }
+
+/* --- Параметры: навигация как боковая панель Claude --- */
+.st-navitem { border-radius: 10px; }
+.st-navitem.on { background: var(--surface-4); }
+html[data-theme="light"] .st-navitem.on { background: var(--surface-4); }
+.st-navitem.on::before { display: none; }
+.st-row, .st-card { border-radius: 12px; }
+
+/* --- Меню и уведомления --- */
+.ctx-menu { border-radius: 12px; }
+.toast { border-radius: 14px; }
+
+/* --- Выделение текста и фокус --- */
+::selection { background: rgba(var(--accent-rgb), .3); }
+
+/* --- Подписи значков на светлых обоях --- */
+html.wp-light .dicon .dlabel { color: var(--claude-ink); text-shadow: 0 0 6px rgba(250, 249, 245, .9), 0 0 2px rgba(250, 249, 245, .9); }
+html.wp-light .dicon:hover { background: rgba(31, 30, 29, .07); }
+html.wp-light .dicon .icon { filter: drop-shadow(0 2px 4px rgba(60, 50, 30, .2)); }

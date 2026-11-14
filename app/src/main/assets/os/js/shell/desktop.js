@@ -8,7 +8,18 @@ const Desktop = (() => {
   const stars = Array.from({ length: 40 }, (_, i) => `radial-gradient(${i % 4 ? 1 : 1.6}px ${i % 4 ? 1 : 1.6}px at ${(i * 37.3) % 100}% ${(i * 61.7) % 100}%, rgba(255,255,255,${0.5 + (i % 5) / 10}), transparent)`).join(',');
 
   const fxSVG = (light) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1">${light ? '<stop offset="0" stop-color="#eef2ff"/><stop offset=".55" stop-color="#e4e3ff"/><stop offset="1" stop-color="#f6e6ff"/>' : '<stop offset="0" stop-color="#0b1230"/><stop offset=".55" stop-color="#1e1650"/><stop offset="1" stop-color="#3a1663"/>'}</linearGradient><radialGradient id="c" cx=".12" cy=".9" r=".7"><stop offset="0" stop-color="#22d3ee" stop-opacity="${light ? '.35' : '.45'}"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient><radialGradient id="m" cx=".9" cy=".08" r=".65"><stop offset="0" stop-color="#d946ef" stop-opacity="${light ? '.3' : '.45'}"/><stop offset="1" stop-color="#d946ef" stop-opacity="0"/></radialGradient><radialGradient id="h" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#7c6cff" stop-opacity="${light ? '.35' : '.5'}"/><stop offset="1" stop-color="#7c6cff" stop-opacity="0"/></radialGradient><linearGradient id="sa" gradientUnits="userSpaceOnUse" x1="292" y1="287" x2="548" y2="766"><stop offset="0" stop-color="#5eead4"/><stop offset=".5" stop-color="#22d3ee"/><stop offset="1" stop-color="#2563eb"/></linearGradient><linearGradient id="sb" gradientUnits="userSpaceOnUse" x1="486" y1="232" x2="734" y2="770"><stop offset="0" stop-color="#818cf8"/><stop offset=".55" stop-color="#8b5cf6"/><stop offset="1" stop-color="#d946ef"/></linearGradient><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="240" x2="0" y2="770"><stop offset="0" stop-color="#fff" stop-opacity=".4"/><stop offset=".5" stop-color="#fff" stop-opacity=".05"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><rect width="1600" height="1000" fill="url(#b)"/><rect width="1600" height="1000" fill="url(#c)"/><rect width="1600" height="1000" fill="url(#m)"/><circle cx="800" cy="500" r="420" fill="url(#h)"/><g transform="translate(800 500) scale(.62) translate(-589 -500)" opacity="${light ? '.8' : '.92'}"><path d="M292 312L456 287 548 766 292 729Z" fill="url(#sa)"/><path d="M486 270L734 232 734 770 574 746Z" fill="url(#sb)"/><path d="M292 312L456 287 548 766 292 729ZM486 270L734 232 734 770 574 746Z" fill="url(#g)"/><path d="M471 250L566 800" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".85"/><path d="M808 136C816 196 826 206 886 214 826 222 816 232 808 292 800 232 790 222 730 214 790 206 800 196 808 136Z" fill="#fff"/></g>${Array.from({ length: 60 }, (_, i) => `<circle cx="${(i * 263) % 1600}" cy="${(i * 151) % 1000}" r="${(i % 3) * 0.7 + 0.7}" fill="#fff" opacity="${light ? 0.25 : 0.15 + (i % 5) / 12}"/>`).join('')}</svg>`;
+  // Обои в стиле Claude: тёплый фон, мягкие «холмы» и лучистая звезда-искра
+  const claudeSVG = (light) => {
+    const bg = light ? ['#faf9f5', '#f0eee6', '#e8e1d3'] : ['#1f1e1d', '#262624', '#2e2620'];
+    const hill = light ? ['#ebe3d3', '#e3d6c0', '#d9c6a8'] : ['#2b2724', '#322a24', '#3a2c22'];
+    const LEN = [104, 78, 96, 84, 110, 74, 100, 88, 92, 80, 106, 76];
+    const rays = LEN.map((len, i) => `<path d="M-11 0 L-5 ${-len} Q0 ${-len - 8} 5 ${-len} L11 0Z" transform="rotate(${i * 30 + (i % 3) * 4})"/>`).join('');
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${bg[0]}"/><stop offset=".6" stop-color="${bg[1]}"/><stop offset="1" stop-color="${bg[2]}"/></linearGradient><radialGradient id="glow" cx=".5" cy=".42" r=".45"><stop offset="0" stop-color="#d97757" stop-opacity="${light ? '.22' : '.28'}"/><stop offset="1" stop-color="#d97757" stop-opacity="0"/></radialGradient></defs><rect width="1600" height="1000" fill="url(#b)"/><rect width="1600" height="1000" fill="url(#glow)"/><path d="M0 760 C260 690 480 720 760 770 S1300 700 1600 740 L1600 1000 L0 1000Z" fill="${hill[0]}"/><path d="M0 830 C340 780 620 850 900 830 S1380 790 1600 820 L1600 1000 L0 1000Z" fill="${hill[1]}"/><path d="M0 910 C300 880 700 930 1000 905 S1450 885 1600 900 L1600 1000 L0 1000Z" fill="${hill[2]}"/><g transform="translate(800 430) scale(.9)" fill="#d97757">${rays}<circle r="30"/></g></svg>`;
+  };
   const WALLPAPERS = {
+    claude: { name: 'Claude', dark: svgURL(claudeSVG(false)), light: svgURL(claudeSVG(true)) },
+    clay: { name: 'Глина', css: 'radial-gradient(ellipse at 20% 15%, rgba(250,249,245,.18), transparent 55%), radial-gradient(ellipse at 85% 90%, rgba(120,50,25,.45), transparent 60%), linear-gradient(150deg, #e08a6c, #d97757 45%, #b4532f)' },
+    parchment: { name: 'Пергамент', lightBg: true, css: 'radial-gradient(ellipse at 80% 10%, rgba(217,119,87,.16), transparent 55%), radial-gradient(ellipse at 10% 90%, rgba(190,160,110,.25), transparent 60%), linear-gradient(180deg, #faf9f5, #f0eee6 60%, #e8e1d3)' },
     fx: { name: 'WindowsFX', dark: svgURL(fxSVG(false)), light: svgURL(fxSVG(true)) },
     bloom: {
       name: 'Цветение',
@@ -28,7 +39,7 @@ const Desktop = (() => {
 
   function wallpaperCSS(id = Store.get('wallpaper')) {
     if (id === 'custom' && Store.get('customWallpaper')) return `url("${Store.get('customWallpaper')}")`;
-    const wp = WALLPAPERS[id] || WALLPAPERS.fx;
+    const wp = WALLPAPERS[id] || WALLPAPERS.claude;
     if (wp.dark) return document.documentElement.dataset.theme === 'light' ? wp.light : wp.dark;
     return wp.css;
   }
@@ -40,6 +51,8 @@ const Desktop = (() => {
     w.style.backgroundSize = 'cover';
     w.style.backgroundPosition = 'center';
     w.classList.toggle('animated', !!WALLPAPERS[id]?.animated && Store.get('animations'));
+    const W = WALLPAPERS[id];
+    document.documentElement.classList.toggle('wp-light', !!W && (W.lightBg || (!!W.light && document.documentElement.dataset.theme === 'light')));
     if (WALLPAPERS[id]?.animated) w.style.backgroundSize = '';
     const ls = document.querySelector('#lockscreen');
     if (ls) ls.style.background = wallpaperCSS();

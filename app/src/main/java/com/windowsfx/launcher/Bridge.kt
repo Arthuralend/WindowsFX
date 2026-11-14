@@ -116,6 +116,63 @@ class Bridge(private val act: MainActivity) {
         return ok()
     }
 
+    // ================================================================ clipboard
+    // One clipboard for WindowsFX and Android: the desktop's navigator.clipboard (and the Craft apps'
+    // copy/paste) goes through these calls, so text and tables (HTML + tab-separated text) move both
+    // ways between WindowsFX windows and other Android apps.
+
+    /** Created here, on the UI thread: older Android versions need a Looper to create it. */
+    private val clipboard = act.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    /** Set while our own write is on its way, so the change event can say who changed the clipboard. */
+    @Volatile private var ownClip = false
+
+    init {
+        // Android reports changes only while WindowsFX is in the foreground (Android 10+), which is when they matter.
+        clipboard.addPrimaryClipChangedListener {
+            act.emit("clipboard", JSONObject().put("own", ownClip).toString())
+            ownClip = false
+        }
+    }
+
+    /** {"text": plain text, "html": HTML flavour or absent, "empty": true when there is nothing}. */
+    @JavascriptInterface
+    fun clipRead(): String = run {
+        val o = JSONObject()
+        val clip = clipboard.primaryClip
+        if (clip == null || clip.itemCount == 0) {
+            o.put("empty", true)
+        } else {
+            val text = StringBuilder()
+            var html: String? = null
+            for (i in 0 until clip.itemCount) {
+                val item = clip.getItemAt(i)
+                val t = item.coerceToText(act)?.toString().orEmpty()
+                if (t.isNotEmpty()) { if (text.isNotEmpty()) text.append('\n'); text.append(t) }
+                if (html == null) {
+                    html = item.htmlText?.takeIf { it.isNotBlank() }
+                        ?: (item.text as? android.text.Spanned)?.let {
+                            android.text.Html.toHtml(it, android.text.Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE)
+                        }
+                }
+            }
+            o.put("text", text.toString())
+            if (html != null) o.put("html", html)
+            o.put("empty", text.isEmpty() && html == null)
+        }
+        o
+    }
+
+    /** Puts text on the Android clipboard; with [html] other apps also get the formatted version (tables keep their cells). */
+    @JavascriptInterface
+    fun clipWrite(text: String?, html: String?): String = run {
+        val t = text.orEmpty()
+        val data = if (!html.isNullOrBlank()) android.content.ClipData.newHtmlText("WindowsFX", t, html)
+                   else android.content.ClipData.newPlainText("WindowsFX", t)
+        ownClip = true
+        clipboard.setPrimaryClip(data)
+        true
+    }
+
     // ================================================================ Android apps
 
     @JavascriptInterface fun apps(): String = run { act.apps.list() }

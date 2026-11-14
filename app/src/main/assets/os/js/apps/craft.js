@@ -113,6 +113,19 @@ function openCraft(appId, args = {}) {
   b.innerHTML = `<div class="fx-loading">${Icons.get(def.icon, 64)}<div>Запуск ${esc(def.name)}…</div></div>`;
   const frame = h(`<iframe class="fx-frame" allow="clipboard-read; clipboard-write; fullscreen" allowfullscreen></iframe>`);
   const e = { appId, win, frame, pending: args.path || null, path: null, ready: false };
+  // Вставка из буфера Android касанием: кнопка «Вставить» на ленте приложения берёт только его
+  // собственный буфер, а Ctrl+V есть не у всех. Эта кнопка вставляет то, что скопировано в Android.
+  if (typeof Clip !== 'undefined' && Clip.native) {
+    win.tbExtra.innerHTML = `<span class="spacer"></span><button class="icon-btn sm no-drag fx-paste" title="Вставить из буфера обмена Android">${Icons.ui('paste', 15)}</button>`;
+    const pb = $('.fx-paste', win.tbExtra);
+    pb.addEventListener('pointerdown', ev => ev.preventDefault()); // фокус остаётся в приложении (в ячейке, в тексте)
+    pb.onclick = () => {
+      let ok = false;
+      try { ok = frame.contentWindow.CraftGuest?.paste(); } catch {}
+      if (!ok) UI.notify({ title: 'Буфер обмена пуст', body: 'Скопируйте текст или таблицу в любом приложении и нажмите эту кнопку ещё раз.', icon: 'info', transient: true, silent: true });
+      try { frame.focus(); } catch {}
+    };
+  }
   frame.addEventListener('load', () => {
     try { CraftHost.register(frame.contentWindow, e); } catch {}
     // название документа из заголовка страницы движка
