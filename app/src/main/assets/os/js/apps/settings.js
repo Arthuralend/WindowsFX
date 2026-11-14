@@ -222,6 +222,34 @@ function openSettings(args = {}) {
       const s2 = sec('Сохранение');
       s2.append(row('folder', 'Настройки и рабочий стол', 'Сохраняются в вашей учётной записи при каждом изменении — войдите с любого компьютера, и всё будет на месте', null));
       pg.append(s1, s2);
+      // Вход через Windows App (RDP): адрес, имя, файл подключения
+      const s3 = sec('Вход через Windows App (удалённый рабочий стол)');
+      fetch('/api/rdp/info', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(ri => {
+        if (!ri || !ri.installed || !ri.enabled) return;
+        const addr = ri.host + (ri.port === 3389 ? '' : ':' + ri.port);
+        if (ri.session) s3.append(row('display', 'Вы работаете через Windows App', 'Сеанс идёт на сервере; файлы и настройки — те же, что в браузере', btn('Завершить сеанс', () => Power.signOut())));
+        if (!ri.allowed) { s3.append(row('lock', 'Вход через RDP недоступен', 'Администратор выключил его для вашей учётной записи', null)); pg.insertBefore(s3, s2.nextSibling); return; }
+        const copyBtn = text => btn('Копировать', () => { navigator.clipboard?.writeText(text); UI.notify({ title: 'Скопировано', body: text, icon: 'copy', transient: true, silent: true }); });
+        s3.append(
+          row('globe', 'Компьютер', addr, copyBtn(addr)),
+          row('user', 'Имя пользователя', ri.user, copyBtn(ri.user)),
+          row('lock', 'Пароль', 'Тот же, что для входа на сайт', null),
+          row('download', 'Файл подключения', 'Откройте его — Windows App подключится сам', btn('Скачать .rdp', () => { location.href = '/api/rdp/file'; })),
+          row('info', 'Как подключиться', 'Windows, Mac, iPhone, iPad, Android', btn('Инструкция', () => rdpHelp(addr, ri.user))),
+        );
+        pg.insertBefore(s3, s2.nextSibling);
+      }).catch(() => {});
+      function rdpHelp(addr, user) {
+        UI.dialog({
+          title: 'Вход через Windows App', icon: 'info',
+          message: 'Рабочий стол можно открыть не только в браузере, но и в программе Windows App (раньше — «Удалённый рабочий стол» Microsoft). Файлы и настройки — те же.\n\n' +
+            '1. Установите Windows App: на Windows — встроенное «Подключение к удалённому рабочему столу» (mstsc) или Windows App из Microsoft Store; на Mac, iPhone и iPad — Windows App из App Store; на Android — Windows App (Remote Desktop) из Google Play.\n' +
+            '2. Проще всего — скачайте файл подключения кнопкой «Скачать .rdp» и откройте его.\n' +
+            `   Или добавьте компьютер вручную: адрес ${addr}, имя пользователя ${user}.\n` +
+            '3. Введите пароль от сайта. Если программа предупредит о сертификате — проверьте, что в нём указан адрес сайта, и подключайтесь.\n\n' +
+            'Чтобы выйти, нажмите «Пуск» → ваше имя → «Выйти»: сеанс закроется. Если просто закрыть окно Windows App, сеанс подождёт вас несколько минут — можно подключиться снова и продолжить.',
+        });
+      }
       if (typeof WebDisks !== 'undefined') WebDisks.settings(pg, { sec, row, btn });
       async function changePw() {
         const box = h('<div style="display:grid;gap:10px;min-width:300px"><input class="input pw-old" type="password" placeholder="Текущий пароль" autocomplete="current-password"><input class="input pw-new" type="password" placeholder="Новый пароль (не короче 8 символов)" autocomplete="new-password"><input class="input pw-new2" type="password" placeholder="Повторите новый пароль" autocomplete="new-password"></div>');

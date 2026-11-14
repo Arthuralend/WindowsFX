@@ -224,6 +224,7 @@ async function apiRegister(req, res) {
   regLimiter.fail('ip:' + ip(req));
   const u = { id, login };
   logEvent('register', req, u);
+  rdp.sync();
   logEvent('login', req, u);
   startSession(req, res, 'user', id);
   json(res, 200, { ok: true, login });
@@ -331,7 +332,7 @@ function osIndex() {
   let html = fs.readFileSync(path.join(CFG.assets, 'os', 'index.html'), 'utf8');
   html = html.replace('<head>', `<head>\n  <base href="/assets/os/">\n  <script src="/web/bridge.js"></script>\n  <script src="/web/localfs.js"></script>`)
     .replace(/<title>[^<]*<\/title>/, `<title>${CFG.siteName}</title>`)
-    .replace('</head>', '  <link rel="stylesheet" href="/web/monomach.css">\n  <link rel="icon" href="/web/icon.svg">\n</head>')
+    .replace('</head>', '  <meta name="google" content="notranslate">\n  <link rel="stylesheet" href="/web/monomach.css">\n  <link rel="icon" href="/web/icon.svg">\n</head>')
     .replace('<script src="js/main.js"></script>', '<script src="/web/webdisks.js"></script>\n  <script src="/web/web-shell.js"></script>\n  <script src="js/main.js"></script>');
   return html;
 }
@@ -373,7 +374,9 @@ async function serveAsset(req, res, rel) {
   return sendFile(req, res, file, { cache });
 }
 
-const admin = require('./admin')({ db, CFG, A, json, readJSON, send, logEvent, getSession, startSession, cookie, setting, setSetting, ctx, spaces, ip });
+// Вход через Windows App (RDP) — см. rdp.js и deploy/rdp/
+const rdp = require('./rdp')({ db, CFG, A, json, readJSON, send, logEvent, setting, setSetting, ip });
+const admin = require('./admin')({ db, CFG, A, json, readJSON, send, logEvent, getSession, startSession, cookie, setting, setSetting, ctx, spaces, ip, rdp });
 
 // ---------- маршрутизация
 async function route(req, res) {
@@ -404,6 +407,8 @@ async function route(req, res) {
   if (p === '/api/login' && M === 'POST') return apiLogin(req, res);
   if (p === '/api/logout' && M === 'POST') return apiLogout(req, res);
   if (p === '/api/config') return json(res, 200, { site: CFG.siteName, registration: setting('registration', 'open') === 'open', quota: +setting('default_quota', CFG.quota) });
+
+  if (!CFG.local && (p === '/rdp/enter' || p.startsWith('/api/rdp/')) && await rdp.handle(req, res, p, url, getUser)) return;
 
   const u = getUser(req);
   if (p === '/' || p === '/login' || p === '/register') {

@@ -7,13 +7,14 @@ const path = require('path');
 const crypto = require('crypto');
 
 module.exports = function (D) {
-  const { db, CFG, A, json, readJSON, logEvent, getSession, startSession, cookie, setting, setSetting, ctx, spaces, ip } = D;
+  const { db, CFG, A, json, readJSON, logEvent, getSession, startSession, cookie, setting, setSetting, ctx, spaces, ip, rdp } = D;
   const limiter = new A.Limiter(6, 15 * 60e3);
   const started = Date.now();
 
   const userRow = u => u && ({
     id: u.id, login: u.login, created: u.created, last_login: u.last_login, last_seen: u.last_seen, last_ip: u.last_ip,
     last_ua: A.describeUA(u.last_ua), logins: u.logins, blocked: !!u.blocked, quota: u.quota, used: (ctx.usage.get(u.id) || {}).used ?? u.used, note: u.note || '',
+    ...(rdp ? rdp.admin.userRow(u) : {}),
   });
 
   async function diskFree() {
@@ -56,6 +57,7 @@ module.exports = function (D) {
       storageUsed: db.prepare('SELECT COALESCE(SUM(used),0) n FROM users').get().n,
       storageQuota: db.prepare('SELECT COALESCE(SUM(quota),0) n FROM users').get().n,
       mounts: n('SELECT COUNT(*) n FROM mounts'),
+      rdp: rdp ? rdp.admin.status() : null,
       days,
       topIps: db.prepare("SELECT ip, COUNT(*) n FROM events WHERE type IN ('login_fail','admin_login_fail') AND ts>? GROUP BY ip ORDER BY n DESC LIMIT 5").all(week),
     };
@@ -69,6 +71,7 @@ module.exports = function (D) {
       disk: await diskFree(), dataDir: CFG.dataDir,
       dbSize: (() => { try { return fs.statSync(path.join(CFG.dataDir, 'monomach.db')).size; } catch { return 0; } })(),
       settings: { registration: setting('registration', 'open'), defaultQuota: +setting('default_quota', CFG.quota), adminLogin: setting('admin_login') },
+      rdp: rdp ? rdp.admin.status() : null,
     };
   }
 
@@ -115,10 +118,12 @@ module.exports = function (D) {
       case 'block':
         db.prepare('UPDATE users SET blocked=1 WHERE id=?').run(id);
         db.prepare("DELETE FROM sessions WHERE kind='user' AND user_id=?").run(id);
+        if (rdp) { rdp.admin.end(id); rdp.sync(); }
         logEvent('admin_block', req, who, b.reason || '');
         return json(res, 200, { ok: true });
       case 'unblock':
         db.prepare('UPDATE users SET blocked=0 WHERE id=?').run(id);
+        if (rdp) rdp.sync();
         logEvent('admin_unblock', req, who);
         return json(res, 200, { ok: true });
       case 'password': {
@@ -134,7 +139,18 @@ module.exports = function (D) {
         logEvent('admin_quota', req, who, mb + ' МБ');
         return json(res, 200, { ok: true });
       }
+      case 'rdp':
+        if (!rdp) return json(res, 400, { error: 'RDP недоступен' });
+        rdp.admin.setAllowed(id, !!b.on);
+        if (!b.on) rdp.admin.end(id);
+        logEvent('admin_rdp', req, who, b.on ? 'разрешён' : 'запрещён');
+        return json(res, 200, { ok: true });
+      case 'rdp_end':
+        if (rdp) rdp.admin.end(id);
+        logEvent('admin_rdp_end', req, who);
+        return json(res, 200, { ok: true });
       case 'logout':
+        if (rdp) rdp.admin.end(id);
         db.prepare("DELETE FROM sessions WHERE kind='user' AND user_id=?").run(id);
         logEvent('admin_logout_user', req, who);
         return json(res, 200, { ok: true });
@@ -146,6 +162,7 @@ module.exports = function (D) {
         db.prepare("DELETE FROM sessions WHERE user_id=?").run(id);
         db.prepare('DELETE FROM users WHERE id=?').run(id);
         spaces.delete(id); ctx.usage.delete(id);
+        if (rdp) { rdp.admin.end(id); rdp.sync(); }
         await fsp.rm(path.join(CFG.dataDir, 'users', String(id)), { recursive: true, force: true });
         logEvent('admin_delete', req, who);
         return json(res, 200, { ok: true });
@@ -157,6 +174,7 @@ module.exports = function (D) {
     const b = await readJSON(req, 64e3);
     if (b.registration) setSetting('registration', b.registration === 'closed' ? 'closed' : 'open');
     if (b.defaultQuotaMb) setSetting('default_quota', Math.round(Math.max(10, +b.defaultQuotaMb) * 1048576));
+    if (rdp && (b.rdp || b.rdpMax || b.rdpDefault)) rdp.admin.settings(b);
     if (b.newPassword) {
       if (!A.checkPassword(String(b.currentPassword || ''), setting('admin_pass'))) return json(res, 400, { error: 'Текущий пароль администратора неверен.' });
       if (String(b.newPassword).length < 10) return json(res, 400, { error: 'Пароль администратора — не короче 10 символов.' });
@@ -164,7 +182,7 @@ module.exports = function (D) {
       if (b.newLogin && /^[A-Za-z0-9_.-]{3,32}$/.test(b.newLogin)) setSetting('admin_login', b.newLogin);
       try { fs.rmSync(path.join(CFG.dataDir, 'admin-password.txt'), { force: true }); } catch {}
     }
-    logEvent('admin_settings', req, { login: setting('admin_login') }, JSON.stringify({ registration: b.registration, defaultQuotaMb: b.defaultQuotaMb, password: !!b.newPassword }));
+    logEvent('admin_settings', req, { login: setting('admin_login') }, JSON.stringify({ registration: b.registration, defaultQuotaMb: b.defaultQuotaMb, rdp: b.rdp, rdpMax: b.rdpMax, rdpDefault: b.rdpDefault, password: !!b.newPassword }));
     json(res, 200, { ok: true });
   }
 

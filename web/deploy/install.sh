@@ -3,9 +3,16 @@
 # Запуск от root:   curl -fsSL https://raw.githubusercontent.com/Arthuralend/WindowsFX/main/web/deploy/install.sh | bash -s -- monomach.ru
 # Без домена (проверка по IP, без HTTPS):  ... | bash -s -- ip
 # Повторный запуск обновляет сайт (данные пользователей не трогаются); с доменом — включает HTTPS.
+# С ключом --rdp дополнительно ставится вход через Windows App (удалённый рабочий стол, порт 3389):
+#   ... | bash -s -- monomach.ru --rdp
 set -euo pipefail
 
-DOMAIN="${1:-monomach.ru}"
+WITH_RDP=0
+ARGS=()
+for a in "$@"; do case "$a" in --rdp) WITH_RDP=1 ;; *) ARGS+=("$a") ;; esac; done
+DOMAIN="${ARGS[0]:-monomach.ru}"
+# RDP уже установлен раньше — обновляем и его
+[ -f /etc/monomach.env ] && grep -q '^RDP_ENABLED=1' /etc/monomach.env && WITH_RDP=1
 IPMODE=0
 if [ "$DOMAIN" = ip ] || [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   IPMODE=1
@@ -140,5 +147,9 @@ echo "   Панель администратора: $SCHEME://$DOMAIN/admin"
 if [ $IPMODE = 1 ]; then echo "   Режим проверки без HTTPS. Когда домен заработает, запустите скрипт ещё раз с доменом."; fi
 [ -n "${NEWPW:-}" ] && echo "   Логин: admin   Пароль: $NEWPW   (сохраните; сменить можно в панели)"
 echo "   Настройки: $ENVF   Данные пользователей: $DATA"
+
+if [ $WITH_RDP = 1 ]; then
+  DOMAIN="$DOMAIN" IPMODE="$IPMODE" APP="$APP" DATA="$DATA" ENVF="$ENVF" bash "$APP/web/deploy/rdp/install-rdp.sh"
+fi
 
 exit 0
