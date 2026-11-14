@@ -328,8 +328,10 @@ async function apiUpload(req, res, u, url) {
 }
 
 // ---------- страницы
-function osIndex() {
+function osIndex(rdpSession) {
   let html = fs.readFileSync(path.join(CFG.assets, 'os', 'index.html'), 'utf8');
+  // сеанс Windows App (RDP): облегчённое оформление (monomach.css, html.rdp)
+  if (rdpSession) html = html.replace('<html ', '<html class="rdp" ');
   html = html.replace('<head>', `<head>\n  <base href="/assets/os/">\n  <script src="/web/bridge.js"></script>\n  <script src="/web/localfs.js"></script>`)
     .replace(/<title>[^<]*<\/title>/, `<title>${CFG.siteName}</title>`)
     .replace('</head>', '  <meta name="google" content="notranslate">\n  <link rel="stylesheet" href="/web/monomach.css">\n  <link rel="icon" href="/web/icon.svg">\n</head>')
@@ -412,7 +414,10 @@ async function route(req, res) {
 
   const u = getUser(req);
   if (p === '/' || p === '/login' || p === '/register') {
-    if (p === '/' && u) return send(res, 200, osIndex(), 'text/html; charset=utf-8');
+    if (p === '/' && u) {
+      const via = u.session && u.session !== 'local' ? (db.prepare('SELECT via FROM sessions WHERE token=?').get(u.session) || {}).via : null;
+      return send(res, 200, osIndex(via === 'rdp'), 'text/html; charset=utf-8');
+    }
     if (CFG.local) return send(res, 403, 'Откройте рабочий стол через программу Monomach.');
     if (p !== '/' && u) { res.writeHead(302, { Location: '/' }); return res.end(); }
     return sendFile(req, res, path.join(CFG.pub, 'login.html'));
