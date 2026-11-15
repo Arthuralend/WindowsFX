@@ -48,5 +48,10 @@ codesign --verify --deep "$APP"
 
 echo "== DMG"
 D="$OUT/dmg"; mkdir -p "$D"; cp -R "$APP" "$D/"; ln -s /Applications "$D/Applications"
-hdiutil create -volname "Monomach" -srcfolder "$D" -ov -format UDZO "$OUT/Monomach-$VER-mac-arm64.dmg" >/dev/null
+# hdiutil на машинах CI иногда отвечает «Resource busy» (диск занят службами macOS) — пробуем ещё раз
+for i in 1 2 3 4 5; do
+  hdiutil create -volname "Monomach" -srcfolder "$D" -ov -format UDZO "$OUT/Monomach-$VER-mac-arm64.dmg" >/dev/null && break
+  [ "$i" = 5 ] && { echo "hdiutil: не удалось создать DMG"; exit 1; }
+  echo "hdiutil: попытка $i не удалась, повтор через $((i * 10)) с"; sleep $((i * 10))
+done
 du -sh "$APP" "$OUT"/*.dmg
