@@ -30,12 +30,12 @@ jobs:
         include:
           - app: wordcraft        # → Документы
             repo: Arthuralend/Documents-Tabes
-            ref: main
+            ref: ''               # основная ветка репозитория (сейчас claude/brave-pascal-s5bk1a)
             ws: .
             web: apps/wordcraft-web
           - app: gridcraft        # → Таблицы
             repo: Arthuralend/Documents-Tabes
-            ref: main
+            ref: ''               # основная ветка репозитория (сейчас claude/brave-pascal-s5bk1a)
             ws: tables
             web: apps/gridcraft-web
             gridcraft_web_from: 1f4c67ef0a0200e48d832c7cbbb5570b743b7837
