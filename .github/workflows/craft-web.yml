@@ -24,6 +24,7 @@ jobs:
   engine:
     runs-on: ubuntu-latest
     timeout-minutes: 150
+    continue-on-error: ${{ matrix.optional == true }}
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +40,11 @@ jobs:
             ws: tables
             web: apps/gridcraft-web
             gridcraft_web_from: 1f4c67ef0a0200e48d832c7cbbb5570b743b7837
+          # Photostore: исходник закреплён на коммите и не меняется, готовая сборка уже лежит в craft-assets.
+          # Её скрипт упаковки (packaging/web/package.sh) не понимает имена файлов новых версий trunk —
+          # если её пересборка упадёт, в релизе остаётся прежняя сборка, а APK и DMG всё равно пересоберутся.
           - app: photocraft       # → Photostore
+            optional: true
             repo: storytold/photocraft
             ref: d95fdf3181c01ad41e95456091a394b105a9afb2
             ws: .
