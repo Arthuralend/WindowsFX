@@ -28,11 +28,32 @@ function openExplorer(args = {}) {
   let items = [];
   let query = '';
   let sort = { key: 'name', dir: 1 };
-  let preview = Persist.get('explorer.preview', false);
+  // Область справа: '' | 'preview' (просмотр) | 'details' (сведения)
+  let pane = Persist.get('explorer.pane', Persist.get('explorer.preview', false) ? 'preview' : '');
+  // Вкладки, как в Проводнике Windows 11: у каждой своя папка и история
+  const tabs = [{ path, hist: [path], hIndex: 0 }];
+  let curTab = 0;
+  // Сенсорный экран: открывать одним касанием и показывать флажки выделения
+  const TOUCH = matchMedia('(pointer: coarse)').matches || (typeof FX !== 'undefined' && FX.available && !FX.web && !FX.mac);
+  const singleClick = () => (Store.get('explorerClick') || (TOUCH ? 'single' : 'double')) === 'single';
+  const checkboxes = () => Store.get('explorerChecks') ?? TOUCH;
+  // Папки, закреплённые в быстром доступе
+  const pins = () => Persist.get('explorer.pins', []).filter(p => FS.isDir(p));
+  const isPinned = p => Persist.get('explorer.pins', []).some(x => x.toLowerCase() === p.toLowerCase());
+  function togglePin(p) {
+    const list = Persist.get('explorer.pins', []);
+    Persist.set('explorer.pins', isPinned(p) ? list.filter(x => x.toLowerCase() !== p.toLowerCase()) : [...list, p]);
+    render();
+  }
+  // Развёрнутые узлы дерева папок
+  const treeOpen = new Set(Persist.get('explorer.tree', []));
+  const saveTree = () => Persist.set('explorer.tree', [...treeOpen].slice(-200));
 
-  const win = WM.open({ app: 'explorer', title: 'Проводник', width: 960, height: 600, minWidth: 460, minHeight: 300 });
+  const win = WM.open({ app: 'explorer', title: 'Проводник', width: 1040, height: 640, minWidth: 460, minHeight: 300 });
   const b = win.body;
   b.classList.add('ex');
+  win.el.classList.add('ex-win');
+  win.tbExtra.innerHTML = `<div class="br-tabs ex-tabs"></div><button class="icon-btn sm ex-newtab no-drag" title="Новая вкладка (Ctrl+T)">${Icons.ui('plus', 14)}</button>`;
   b.innerHTML = `
     <div class="ex-nav">
       <button class="icon-btn ex-back" title="Назад (Alt+←)">${Icons.ui('back', 16)}</button>
@@ -49,12 +70,17 @@ function openExplorer(args = {}) {
       <div class="ex-preview hidden"></div>
     </div>
     <div class="statusbar"><span class="ex-count"></span><span class="ex-selinfo"></span><span class="spacer"></span>
-      <button class="icon-btn sm ex-v-details" title="Таблица">${Icons.ui('details', 14)}</button>
-      <button class="icon-btn sm ex-v-grid" title="Крупные значки">${Icons.ui('grid', 14)}</button>
+      <button class="icon-btn sm ex-v-details" title="Таблица (Ctrl+Shift+6)">${Icons.ui('details', 14)}</button>
+      <button class="icon-btn sm ex-v-grid" title="Крупные значки (Ctrl+Shift+2)">${Icons.ui('grid', 14)}</button>
     </div>`;
   const content = $('.ex-content', b);
   const isReal = () => !SPECIAL[path];
-  const view = () => Store.get('explorerView') || 'grid';
+  // Виды, как в Windows (размер значка); Ctrl+колесо мыши переключает между ними
+  const VIEWS = [['xl', 'Огромные значки', 'grid', 96], ['grid', 'Крупные значки', 'grid', 48], ['medium', 'Обычные значки', 'grid', 32],
+    ['small', 'Мелкие значки', 'list', 16], ['list', 'Список', 'list', 18], ['details', 'Таблица', 'details', 18], ['tiles', 'Плитка', 'grid', 48]];
+  const ZOOM = ['details', 'list', 'small', 'medium', 'grid', 'xl'];
+  const view = () => { const v = Store.get('explorerView'); return VIEWS.some(x => x[0] === v) ? v : 'grid'; };
+  b.classList.toggle('ex-touch', TOUCH);
 
   // ---------- Навигация ----------
   function go(p, push = true) {
@@ -64,6 +90,7 @@ function openExplorer(args = {}) {
       p = rp;
     }
     path = p;
+    if (!SPECIAL[p]) { const parts = FS.split(p); for (let i = 1; i < parts.length; i++) treeOpen.add(parts.slice(0, i).join('/').toLowerCase()); treeOpen.add('thispc://'); }
     query = '';
     $('.ex-search input', b).value = '';
     sel.clear(); anchor = null;
@@ -79,11 +106,65 @@ function openExplorer(args = {}) {
     go(par || 'thispc://');
   };
 
+  // ---------- Вкладки ----------
+  const titleOf = p => SPECIAL[p] ? SPECIAL[p].name : (FS.split(p).length === 1 ? `${FS.drives().find(d => d.letter === p)?.label || 'Диск'} (${p})` : FS.basename(p));
+  function saveTab() { tabs[curTab] = { path, hist: [...hist], hIndex, scroll: content.scrollTop }; }
+  function applyTab(i) {
+    curTab = i;
+    const t = tabs[i];
+    path = t.path; hist.splice(0, hist.length, ...t.hist); hIndex = t.hIndex;
+    query = ''; $('.ex-search input', b).value = '';
+    sel.clear(); anchor = null;
+    render();
+    content.scrollTop = t.scroll || 0;
+    content.focus({ preventScroll: true });
+  }
+  const switchTab = i => { if (i === curTab || !tabs[i]) return; saveTab(); applyTab(i); };
+  function newTab(p = 'home://', background = false) {
+    if (!SPECIAL[p]) p = FS.isDir(p) ? FS.realPath(p) : 'home://';
+    saveTab();
+    tabs.push({ path: p, hist: [p], hIndex: 0 });
+    if (background) renderTabs(); else applyTab(tabs.length - 1);
+  }
+  function closeTab(i) {
+    if (tabs.length === 1) { win.close(); return; }
+    saveTab();
+    tabs.splice(i, 1);
+    applyTab(Math.min(i < curTab ? curTab - 1 : curTab, tabs.length - 1));
+  }
+  function renderTabs() {
+    const box = $('.ex-tabs', win.tbExtra);
+    box.innerHTML = '';
+    tabs.forEach((t, i) => {
+      const p = i === curTab ? path : t.path;
+      const icon = SPECIAL[p] ? SPECIAL[p].icon : FS.typeOf(p).icon;
+      const el = h(`<div class="br-tab ex-tab no-drag ${i === curTab ? 'on' : ''}" title="${esc(SPECIAL[p] ? SPECIAL[p].name : FS.display(p))}">${Icons.get(icon, 16)}<span class="ex-tab-t">${esc(titleOf(p))}</span><button class="icon-btn sm ex-tab-x" title="Закрыть вкладку (Ctrl+W)">${Icons.ui('close', 10)}</button></div>`);
+      el.addEventListener('pointerdown', e => {
+        if (e.target.closest('.ex-tab-x')) return;
+        if (e.button === 1) { e.preventDefault(); closeTab(i); } else switchTab(i);
+      });
+      $('.ex-tab-x', el).onclick = e => { e.stopPropagation(); closeTab(i); };
+      // перетаскивание файлов: задержаться над вкладкой — она откроется
+      el.addEventListener('dragover', e => { if (DnD.accepts(e)) { e.preventDefault(); if (!el._t) el._t = setTimeout(() => { el._t = 0; switchTab(i); }, 600); } });
+      el.addEventListener('dragleave', () => { clearTimeout(el._t); el._t = 0; });
+      box.append(el);
+    });
+  }
+  $('.ex-newtab', win.tbExtra).onclick = () => newTab();
+
   $('.ex-back', b).onclick = back;
   $('.ex-fwd', b).onclick = fwd;
   $('.ex-up', b).onclick = up;
   $('.ex-refresh', b).onclick = () => { content.style.opacity = .4; setTimeout(() => { content.style.opacity = ''; render(); }, 100); };
   $('.ex-v-details', b).onclick = () => Store.set('explorerView', 'details');
+  // Ctrl + колесо мыши: крупнее / мельче
+  b.addEventListener('wheel', e => {
+    if (!e.ctrlKey || !e.target.closest('.ex-content')) return;
+    e.preventDefault();
+    const i = Math.max(0, ZOOM.indexOf(view()));
+    const n = clamp(i + (e.deltaY < 0 ? 1 : -1), 0, ZOOM.length - 1);
+    if (n !== i) Store.set('explorerView', ZOOM[n]);
+  }, { passive: false });
   $('.ex-v-grid', b).onclick = () => Store.set('explorerView', 'grid');
 
   // Адресная строка
@@ -94,7 +175,50 @@ function openExplorer(args = {}) {
     addrIn.value = isReal() ? FS.display(path) : SPECIAL[path].name;
     addrIn.focus(); addrIn.select();
   });
-  addrIn.addEventListener('blur', () => addr.classList.remove('editing'));
+  addrIn.addEventListener('blur', () => { addr.classList.remove('editing'); acHide(); });
+  // Подсказки папок по мере ввода (как в Windows): ↑↓ — выбор, Tab — дописать
+  let ac = null, acList = [], acI = -1;
+  function acHide() { ac?.remove(); ac = null; acList = []; acI = -1; }
+  function acUpdate() {
+    const v = addrIn.value;
+    const cut = Math.max(v.lastIndexOf('/'), v.lastIndexOf('\\'));
+    const dir = cut >= 0 ? v.slice(0, cut + 1) : '';
+    const pre = (cut >= 0 ? v.slice(cut + 1) : v).toLowerCase();
+    let opts = [];
+    try {
+      if (!dir) opts = FS.drives().map(d => ({ label: `${d.label} (${d.letter})`, value: d.letter + '\\', icon: 'drive', key: d.letter.toLowerCase() }));
+      else {
+        const rp = FS.realPath(dir);
+        if (rp && FS.isDir(rp)) opts = FS.list(rp).filter(i => i.isDir).map(i => ({ label: i.name, value: dir + i.name + '\\', icon: FS.typeOf(i.path, i.node).icon, key: i.name.toLowerCase() }));
+      }
+    } catch {}
+    acList = opts.filter(o => o.key.startsWith(pre) || o.label.toLowerCase().startsWith(pre)).slice(0, 14);
+    acI = -1;
+    if (!acList.length || !addr.classList.contains('editing')) { ac?.remove(); ac = null; return; }
+    if (!ac) { ac = h('<div class="ex-ac"></div>'); document.body.append(ac); }
+    const r = addr.getBoundingClientRect();
+    Object.assign(ac.style, { left: r.left + 'px', top: r.bottom + 4 + 'px', width: r.width + 'px' });
+    ac.innerHTML = '';
+    acList.forEach((o, i) => {
+      const it = h(`<div>${Icons.get(o.icon, 16)}<span>${esc(o.label)}</span></div>`);
+      it.addEventListener('pointerdown', e => { e.preventDefault(); addrIn.value = o.value; acUpdate(); });
+      it.addEventListener('dblclick', () => { addrIn.value = o.value; addrIn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); });
+      ac.append(it);
+    });
+  }
+  const acMark = () => ac && [...ac.children].forEach((x, i) => x.classList.toggle('on', i === acI));
+  addrIn.addEventListener('input', acUpdate);
+  addrIn.addEventListener('keydown', e => {
+    if (ac && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      acI = (acI + (e.key === 'ArrowDown' ? 1 : -1) + acList.length) % acList.length;
+      acMark();
+      ac.children[acI]?.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (ac && e.key === 'Tab') { e.preventDefault(); addrIn.value = acList[Math.max(0, acI)].value; acUpdate(); return; }
+    if (e.key === 'Enter' && ac && acI >= 0) addrIn.value = acList[acI].value;
+  });
   addrIn.addEventListener('keydown', e => {
     if (e.key === 'Escape') { addrIn.blur(); content.focus(); }
     if (e.key === 'Enter') {
@@ -112,11 +236,18 @@ function openExplorer(args = {}) {
 
   function renderCrumbs() {
     crumbs.innerHTML = '';
+    let prev = null;
     const add = (label, p, icon) => {
       const c = h(`<span class="crumb">${icon ? Icons.get(icon, 16) : ''}<span>${esc(label)}</span></span>`);
       c.onclick = () => go(p);
-      if (crumbs.children.length) crumbs.append(h(`<span class="crumb-sep">${Icons.ui('chevron-right', 10)}</span>`));
+      if (prev) {
+        const from = prev;
+        const sep = h(`<span class="crumb-sep" title="Папки внутри">${Icons.ui('chevron-right', 10)}</span>`);
+        sep.onclick = e => { e.stopPropagation(); const r = sep.getBoundingClientRect(); UI.menu(r.left, r.bottom + 4, subfolderMenu(from)); };
+        crumbs.append(sep);
+      }
       crumbs.append(c);
+      prev = p;
     };
     if (!isReal()) { add(SPECIAL[path].name, path, SPECIAL[path].icon); return; }
     add('Этот компьютер', 'thispc://', 'thispc');
@@ -125,7 +256,24 @@ function openExplorer(args = {}) {
       const p = parts.slice(0, i + 1).join('/');
       add(i === 0 ? `${FS.drives().find(d => d.letter === seg)?.label || 'Диск'} (${seg})` : seg, p);
     });
+    if (prev && subdirs(prev).length) {
+      const from = prev;
+      const sep = h(`<span class="crumb-sep" title="Папки внутри">${Icons.ui('chevron-right', 10)}</span>`);
+      sep.onclick = e => { e.stopPropagation(); const r = sep.getBoundingClientRect(); UI.menu(r.left, r.bottom + 4, subfolderMenu(from)); };
+      crumbs.append(sep);
+    }
     crumbs.scrollLeft = crumbs.scrollWidth;
+  }
+
+  /** Меню вложенных папок (стрелки адресной строки) */
+  function subfolderMenu(p) {
+    let list = [];
+    try {
+      list = p === 'thispc://' ? FS.drives().map(d => ({ label: `${d.label} (${d.letter})`, icon: 'drive', action: () => go(d.letter) }))
+        : FS.list(p).filter(i => i.isDir).sort((a, c) => a.name.localeCompare(c.name, 'ru', { numeric: true }))
+          .slice(0, 60).map(i => ({ label: i.name, icon: FS.typeOf(i.path, i.node).icon, checked: path.toLowerCase().startsWith(i.path.toLowerCase()), action: () => go(i.path) }));
+    } catch {}
+    return list.length ? list : [{ label: 'Нет вложенных папок', disabled: true }];
   }
 
   // Поиск
@@ -133,17 +281,29 @@ function openExplorer(args = {}) {
   $('.ex-search input', b).addEventListener('keydown', e => { if (e.key === 'Escape') { e.target.value = ''; query = ''; render(); } });
 
   // ---------- Боковая панель ----------
+  // Дерево папок: стрелка раскрывает папку, щелчок по имени — открывает
+  const subdirs = p => {
+    try { return FS.list(p).filter(i => i.isDir).sort((a, c) => a.name.localeCompare(c.name, 'ru', { numeric: true })).slice(0, 400); } catch { return []; }
+  };
   function renderSide() {
     const side = $('.ex-side', b);
+    const keep = side.scrollTop;
     side.innerHTML = '';
-    const add = (label, p, icon, extra = '') => {
-      const it = h(`<div class="ex-side-item ${path === p ? 'on' : ''} ${extra}" data-path="${esc(p)}">${Icons.get(icon, 18)}<span>${esc(label)}</span></div>`);
+    const add = (label, p, icon, extra = '', depth = 0, key = null, kids = null) => {
+      const k = key || p.toLowerCase();
+      const open = kids !== null && treeOpen.has(k);
+      const it = h(`<div class="ex-side-item ex-tree-row ${path.toLowerCase() === p.toLowerCase() ? 'on' : ''} ${open ? 'open' : ''} ${extra}" data-path="${esc(p)}" style="--d:${depth}">
+        <span class="ex-tree-tw ${kids === null ? 'leaf' : ''}">${Icons.ui('chevron-right', 10)}</span>${Icons.get(icon, 18)}<span>${esc(label)}</span></div>`);
+      $('.ex-tree-tw', it).onclick = e => { e.stopPropagation(); if (kids === null) return; treeOpen.has(k) ? treeOpen.delete(k) : treeOpen.add(k); saveTree(); renderSide(); };
       it.onclick = () => go(p);
+      it.addEventListener('auxclick', e => { if (e.button === 1 && p !== 'bin://') { e.preventDefault(); newTab(p, true); } });
       it.oncontextmenu = e => {
         e.preventDefault(); e.stopPropagation();
         if (p === 'bin://') UI.menu(e.clientX, e.clientY, [{ label: 'Очистить корзину', icon: 'trash', disabled: !FS.bin().length, action: Desktop.emptyBin }]);
         else if (!SPECIAL[p]) UI.menu(e.clientX, e.clientY, [
-          { label: 'Открыть в новом окне', icon: 'external', action: () => Apps.launch('explorer', { path: p }) },
+          { label: 'Открыть в новой вкладке', icon: 'tab', action: () => newTab(p) },
+          { label: 'Открыть в новом окне', icon: 'external', action: () => Apps.launch('explorer', { path: p, newWindow: true }) },
+          { label: isPinned(p) ? 'Открепить от быстрого доступа' : 'Закрепить в быстром доступе', icon: 'pin', action: () => togglePin(p) },
           { label: 'Открыть в терминале', icon: 'terminal', action: () => Apps.launch('terminal', { cwd: p }) },
           { label: 'Свойства', icon: 'info', action: () => UI.properties(p) },
         ]);
@@ -157,15 +317,25 @@ function openExplorer(args = {}) {
         await DnD.dropInto(p, e);
       });
       side.append(it);
+      return open;
+    };
+    // папка и (если раскрыта) её вложенные папки
+    const folder = (label, p, icon, depth, key) => {
+      const kids = subdirs(p);
+      if (add(label, p, icon, '', depth, key, kids.length ? kids : null)) kids.forEach(c => folder(c.name, c.path, FS.typeOf(c.path, c.node).icon, depth + 1));
     };
     add('Главная', 'home://', 'home');
     side.append(h('<div class="ex-side-sep"></div>'));
-    QUICK.forEach(([n, p, ic]) => add(n, p, ic));
+    QUICK.forEach(([n, p, ic]) => folder(n, p, ic, 0, 'q:' + p.toLowerCase()));
+    pins().forEach(p => folder(FS.basename(p) || p, p, 'folder', 0, 'pin:' + p.toLowerCase()));
     side.append(h('<div class="ex-side-sep"></div>'));
-    add('Этот компьютер', 'thispc://', 'thispc');
-    FS.drives().forEach(d => add(`${d.label} (${d.letter})`, d.letter, d.letter === 'C:' ? 'drive-win' : d.icon ? d.icon : d.device ? (d.label.startsWith('SD') ? 'drive-sd' : 'drive-phone') : 'drive', 'indent'));
+    if (add('Этот компьютер', 'thispc://', 'thispc', '', 0, 'thispc://', [])) {
+      FS.drives().forEach(d => folder(`${d.label} (${d.letter})`, d.letter, d.letter === 'C:' ? 'drive-win' : d.icon ? d.icon : d.device ? (d.label.startsWith('SD') ? 'drive-sd' : 'drive-phone') : 'drive', 1));
+    }
     side.append(h('<div class="ex-side-sep"></div>'));
     add('Корзина', 'bin://', FS.bin().length ? 'recycle-full' : 'recycle');
+    side.scrollTop = keep;
+    if (side._scrollTo !== path) { side._scrollTo = path; $('.ex-tree-row.on', side)?.scrollIntoView({ block: 'nearest' }); }
   }
 
   // ---------- Командная панель ----------
@@ -227,11 +397,16 @@ function openExplorer(args = {}) {
       { label: 'По возрастанию', checked: sort.dir === 1, action: () => { sort.dir = 1; render(); } },
       { label: 'По убыванию', checked: sort.dir === -1, action: () => { sort.dir = -1; render(); } }];
   }
+  function setPane(m) { pane = pane === m ? '' : m; Persist.set('explorer.pane', pane); renderPreview(); }
   function viewItems() {
-    const v = (k, label, icon) => ({ label, icon, checked: view() === k, action: () => Store.set('explorerView', k) });
-    return [v('grid', 'Крупные значки', 'grid'), v('list', 'Список', 'list'), v('details', 'Таблица', 'details'), { sep: true },
-      { label: 'Область просмотра', checked: preview, action: () => { preview = !preview; Persist.set('explorer.preview', preview); renderPreview(); } },
-      { label: 'Расширения имён файлов', checked: Store.get('showExtensions'), action: () => Store.set('showExtensions', !Store.get('showExtensions')) }];
+    return [...VIEWS.map(([k, label, icon], i) => ({ label, icon, shortcut: 'Ctrl+Shift+' + (i + 1), checked: view() === k, action: () => Store.set('explorerView', k) })), { sep: true },
+      { label: 'Область просмотра', shortcut: 'Alt+P', checked: pane === 'preview', action: () => setPane('preview') },
+      { label: 'Область сведений', shortcut: 'Alt+Shift+P', checked: pane === 'details', action: () => setPane('details') },
+      { sep: true },
+      { label: 'Открывать одним щелчком', checked: singleClick(), action: () => Store.set('explorerClick', singleClick() ? 'double' : 'single') },
+      { label: 'Флажки элементов', checked: checkboxes(), action: () => Store.set('explorerChecks', !checkboxes()) },
+      { label: 'Расширения имён файлов', checked: Store.get('showExtensions'), action: () => Store.set('showExtensions', !Store.get('showExtensions')) },
+      { label: 'Скрытые элементы', checked: !!Store.get('showHidden'), action: () => { Store.set('showHidden', !Store.get('showHidden')); FS.refreshDevice?.(); } }];
   }
 
   // ---------- Данные ----------
@@ -269,7 +444,7 @@ function openExplorer(args = {}) {
 
   // ---------- Отрисовка ----------
   function render() {
-    const title = isReal() ? (FS.split(path).length === 1 ? `${FS.drives().find(d => d.letter === path)?.label} (${path})` : FS.basename(path)) : SPECIAL[path].name;
+    const title = titleOf(path);
     win.setTitle(query ? `Результаты поиска в «${title}»` : title);
     win.setIcon(isReal() ? FS.typeOf(path).icon : SPECIAL[path].icon);
     $('.ex-back', b).disabled = hIndex === 0;
@@ -277,6 +452,7 @@ function openExplorer(args = {}) {
     $('.ex-up', b).disabled = path === 'home://';
     $('.ex-search input', b).placeholder = 'Поиск: ' + title;
     renderCrumbs();
+    renderTabs();
     renderSide();
     content.innerHTML = '';
     content.className = 'ex-content';
@@ -303,8 +479,10 @@ function openExplorer(args = {}) {
       } else content.innerHTML = `<div class="empty-state">${Icons.ui('alert', 40)}<div>${esc(e.message)}</div></div>`;
       return;
     }
-    const v = path === 'bin://' || query ? (view() === 'grid' ? 'details' : view()) : view();
+    const v = path === 'bin://' || query ? (['details', 'list', 'small'].includes(view()) ? view() : 'details') : view();
     content.classList.add('v-' + v);
+    content.classList.toggle('ex-checks', checkboxes());
+    const ISZ = { xl: 96, grid: 48, medium: 32, tiles: 48 };
     if (!items.length) {
       content.innerHTML = `<div class="empty-state">${query ? Icons.ui('search', 40) + '<div>Ничего не найдено по запросу «' + esc(query) + '».</div>' : path === 'bin://' ? Icons.get('recycle', 56) + '<div>Корзина пуста</div>' : '<div>Эта папка пуста.</div>'}</div>`;
       return;
@@ -313,19 +491,32 @@ function openExplorer(args = {}) {
       const cols = path === 'bin://' ? [['name', 'Имя'], ['orig', 'Исходное расположение'], ['date', 'Дата удаления'], ['size', 'Размер']]
         : query ? [['name', 'Имя'], ['folder', 'Папка'], ['date', 'Дата изменения'], ['size', 'Размер']]
         : [['name', 'Имя'], ['date', 'Дата изменения'], ['type', 'Тип'], ['size', 'Размер']];
-      const head = h(`<div class="ex-dhead">${cols.map(([k, l]) => `<div data-k="${k}" class="${sort.key === k ? 'on' : ''}">${l}${sort.key === k ? Icons.ui(sort.dir === 1 ? 'chevron-up' : 'chevron-down', 10) : ''}</div>`).join('')}</div>`);
-      $$('div', head).forEach(c => c.onclick = () => { const k = c.dataset.k; if (['orig', 'folder'].includes(k)) return; if (sort.key === k) sort.dir *= -1; else { sort.key = k; sort.dir = 1; } render(); });
+      const head = h(`<div class="ex-dhead">${cols.map(([k, l]) => `<div data-k="${k}" class="${sort.key === k ? 'on' : ''}">${l}${sort.key === k ? Icons.ui(sort.dir === 1 ? 'chevron-up' : 'chevron-down', 10) : ''}<i class="ex-col-rs"></i></div>`).join('')}</div>`);
+      $$('div[data-k]', head).forEach(c => c.onclick = e => { if (e.target.closest('.ex-col-rs')) return; const k = c.dataset.k; if (['orig', 'folder'].includes(k)) return; if (sort.key === k) sort.dir *= -1; else { sort.key = k; sort.dir = 1; } render(); });
+      // ширина столбцов: перетащить границу заголовка
+      const W = Persist.get('explorer.cols', null);
+      if (W && W.length === 4) content.style.setProperty('--ex-cols', W.map(x => x + 'px').join(' '));
+      $$('.ex-col-rs', head).forEach((rs, ci) => rs.addEventListener('pointerdown', e => {
+        e.preventDefault(); e.stopPropagation();
+        const cells = $$('div[data-k]', head), widths = cells.map(c => c.getBoundingClientRect().width);
+        const sx = e.clientX, w0 = widths[ci];
+        const mv = ev => { widths[ci] = Math.max(60, w0 + ev.clientX - sx); content.style.setProperty('--ex-cols', widths.map(x => Math.round(x) + 'px').join(' ')); };
+        const upH = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', upH); Persist.set('explorer.cols', widths.map(Math.round)); };
+        addEventListener('pointermove', mv); addEventListener('pointerup', upH);
+      }));
       content.append(head);
     }
     const box = h(`<div class="ex-items"></div>`);
     items.forEach(it => {
       let el;
-      if (v === 'grid') el = h(`<div class="ex-item" draggable="true">${itemIcon(it, 48)}<div class="ex-label">${esc(it.label)}</div></div>`);
-      else if (v === 'list') el = h(`<div class="ex-item" draggable="true">${Icons.get(it.icon, 18, { shortcut: it.shortcut })}<div class="ex-label">${esc(it.label)}</div></div>`);
+      const chk = `<span class="ex-chk">${Icons.ui('check', 12)}</span>`;
+      if (v === 'grid' || v === 'xl' || v === 'medium') el = h(`<div class="ex-item" draggable="true">${chk}${itemIcon(it, ISZ[v])}<div class="ex-label">${esc(it.label)}</div></div>`);
+      else if (v === 'tiles') el = h(`<div class="ex-item" draggable="true">${chk}${itemIcon(it, 48)}<div class="ex-tile-t"><div class="ex-label">${esc(it.label)}</div><span>${esc(it.typeLabel)}</span><span>${it.size === null ? '' : fmtBytes(it.size)}</span></div></div>`);
+      else if (v === 'list' || v === 'small') el = h(`<div class="ex-item" draggable="true">${chk}${Icons.get(it.icon, v === 'small' ? 16 : 18, { shortcut: it.shortcut })}<div class="ex-label">${esc(it.label)}</div></div>`);
       else {
         const c3 = path === 'bin://' ? FS.display(it.orig) : query ? it.folder : it.typeLabel;
         const c2 = fmtDateTime(it.date);
-        el = h(`<div class="ex-item ex-row" draggable="true"><div class="c-name">${Icons.get(it.icon, 18, { shortcut: it.shortcut })}<span class="ex-label">${esc(it.label)}</span></div>${path === 'bin://' || query ? `<div>${esc(c3)}</div><div>${c2}</div>` : `<div>${c2}</div><div>${esc(c3)}</div>`}<div class="r">${it.size === null ? '' : fmtBytes(it.size)}</div></div>`);
+        el = h(`<div class="ex-item ex-row" draggable="true"><div class="c-name">${chk}${Icons.get(it.icon, 18, { shortcut: it.shortcut })}<span class="ex-label">${esc(it.label)}</span></div>${path === 'bin://' || query ? `<div>${esc(c3)}</div><div>${c2}</div>` : `<div>${c2}</div><div>${esc(c3)}</div>`}<div class="r">${it.size === null ? '' : fmtBytes(it.size)}</div></div>`);
       }
       el.dataset.id = it.id;
       el.title = `${it.name}\nТип: ${it.typeLabel}${it.size !== null ? '\nРазмер: ' + fmtBytes(it.size) : ''}\nИзменён: ${fmtDateTime(it.date)}`;
@@ -403,18 +594,41 @@ function openExplorer(args = {}) {
 
   function renderPreview() {
     const pv = $('.ex-preview', b);
-    pv.classList.toggle('hidden', !preview);
-    if (!preview) return;
-    const p = selectedPaths()[0];
+    pv.classList.toggle('hidden', !pane);
+    if (!pane) return;
+    const sp = selectedPaths();
+    // без выделения: сведения о текущей папке
+    const p = sp[0] || (pane === 'details' && isReal() ? path : null);
     const node = p && FS.get(p);
-    if (!node) { pv.innerHTML = '<div class="muted ex-pv-empty">Выберите файл для предварительного просмотра.</div>'; return; }
+    if (!node) { pv.innerHTML = `<div class="muted ex-pv-empty">${pane === 'preview' ? 'Выберите файл для предварительного просмотра.' : 'Выберите файл или папку, чтобы увидеть сведения.'}</div>`; return; }
     const t = FS.typeOf(p, node);
+    const isFile = node.t === 'f';
     let body = '';
-    if (t.kind === 'image') body = `<img src="${esc(node.c)}" class="ex-pv-img">`;
-    else if (['text', 'code', 'html'].includes(t.kind)) body = `<pre class="ex-pv-text">${esc(String(node.c).slice(0, 4000))}</pre>`;
-    else if (t.kind === 'audio') body = `<audio controls src="${esc(node.c)}" style="width:100%"></audio>`;
-    else body = `<div style="display:grid;place-items:center;padding:20px">${Icons.get(t.icon, 96, { shortcut: t.shortcut })}</div>`;
-    pv.innerHTML = `${body}<div class="ex-pv-meta"><b>${esc(FS.basename(p))}</b><span>${esc(t.label)}</span>${node.t === 'f' ? `<span>${fmtBytes(FS.nodeSize(node))}</span>` : ''}<span>Изменён: ${fmtDateTime(node.mt)}</span></div>`;
+    if (pane === 'preview' && isFile) {
+      try {
+        if (t.kind === 'image') body = `<img src="${esc(FS.url(p))}" class="ex-pv-img">`;
+        else if (t.kind === 'video') body = `<video controls muted preload="metadata" src="${esc(FS.url(p))}" class="ex-pv-img"></video>`;
+        else if (t.kind === 'audio') body = `<audio controls preload="metadata" src="${esc(FS.url(p))}" style="width:100%"></audio>`;
+        else if (['text', 'code', 'html'].includes(t.kind)) body = `<pre class="ex-pv-text">${esc(String(node.c ?? '').slice(0, 6000))}</pre>`;
+      } catch {}
+    }
+    if (!body) body = `<div class="ex-pv-icon">${(t.kind === 'image' || t.kind === 'video') && isFile ? itemIcon({ ...t, path: p, node, kind: t.kind, icon: t.icon }, 128) : Icons.get(t.icon, 96, { shortcut: t.shortcut })}</div>`;
+    const sz = sp.length > 1 ? sp.reduce((a, x) => a + (FS.size(x) || 0), 0) : null;
+    const rows = sp.length > 1 ? [['Выбрано', `${sp.length} ${plural(sp.length, 'элемент', 'элемента', 'элементов')}`], ['Размер', fmtBytes(sz)]] : [
+      ['Тип', t.label],
+      ['Расположение', FS.display(FS.parent(p) || p)],
+      isFile ? ['Размер', fmtBytes(FS.nodeSize(node))] : (() => { let n = 0; try { n = FS.list(p).length; } catch {} return ['Содержимое', `${n} ${plural(n, 'элемент', 'элемента', 'элементов')}`]; })(),
+      ['Изменён', fmtDateTime(node.mt)],
+      node.ct && node.ct !== node.mt ? ['Создан', fmtDateTime(node.ct)] : null,
+      t.kind === 'image' && isFile ? ['Размеры', '<span class="ex-pv-dim">…</span>'] : null,
+    ].filter(Boolean);
+    pv.innerHTML = `${body}<div class="ex-pv-meta"><b>${esc(sp.length > 1 ? 'Несколько элементов' : FS.basename(p) || titleOf(p))}</b></div>
+      <dl class="ex-pv-props">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${k === 'Размеры' ? v : esc(v)}</dd>`).join('')}</dl>
+      ${sp.length === 1 ? `<div class="ex-pv-acts"><button class="btn primary ex-pv-open">${Icons.ui('folder-open', 14)} Открыть</button>${isFile ? `<button class="btn ex-pv-loc" title="Свойства">${Icons.ui('info', 14)}</button>` : ''}</div>` : ''}`;
+    const dim = $('.ex-pv-dim', pv);
+    if (dim) { const im = new Image(); im.onload = () => { dim.textContent = `${im.naturalWidth} × ${im.naturalHeight}`; }; im.onerror = () => { dim.textContent = '—'; }; im.src = FS.url(p); }
+    $('.ex-pv-open', pv)?.addEventListener('click', () => { const it = items.find(i => i.id === p); if (it) openIt(it); });
+    $('.ex-pv-loc', pv)?.addEventListener('click', () => UI.properties(p));
   }
 
   function updateStatus() {
@@ -450,6 +664,12 @@ function openExplorer(args = {}) {
   content.addEventListener('pointerdown', e => {
     if (e.target.closest('.ex-rename-in, .ex-dhead')) return;
     const it = itemByEl(e.target);
+    if (it && e.target.closest('.ex-chk')) {
+      // флажок: добавить или убрать из выделения, не открывая
+      e.preventDefault();
+      const s = new Set(sel); s.has(it.id) ? s.delete(it.id) : s.add(it.id); select([...s]);
+      return;
+    }
     if (it) {
       if (e.ctrlKey) { const s = new Set(sel); s.has(it.id) ? s.delete(it.id) : s.add(it.id); select([...s]); }
       else if (e.shiftKey && anchor) {
@@ -484,9 +704,14 @@ function openExplorer(args = {}) {
 
   content.addEventListener('click', e => {
     const it = itemByEl(e.target);
-    if (it && !e.ctrlKey && !e.shiftKey && sel.size > 1) select([it.id]);
+    if (!it || e.target.closest('.ex-chk, input')) return;
+    if (!e.ctrlKey && !e.shiftKey && sel.size > 1 && !singleClick()) select([it.id]);
+    // одним щелчком (касанием) — открыть, как в режиме «Открывать одним щелчком» Windows
+    if (singleClick() && !e.ctrlKey && !e.shiftKey && e.button === 0) { select([it.id]); openIt(it); }
   });
-  content.addEventListener('dblclick', e => { const it = itemByEl(e.target); if (it && !e.target.closest('input')) openIt(it); });
+  content.addEventListener('dblclick', e => { const it = itemByEl(e.target); if (it && !singleClick() && !e.target.closest('input, .ex-chk')) openIt(it); });
+  // средняя кнопка мыши по папке — открыть в новой вкладке
+  content.addEventListener('auxclick', e => { const it = itemByEl(e.target); if (e.button === 1 && it?.isDir && !it.bin) { e.preventDefault(); newTab(it.path, true); } });
 
   content.addEventListener('contextmenu', e => {
     e.preventDefault();
@@ -502,7 +727,12 @@ function openExplorer(args = {}) {
         ]);
         return;
       }
-      UI.menu(e.clientX, e.clientY, FileOps.itemMenu(selectedPaths(), { dir: path, rename: startRename }));
+      const sp = selectedPaths();
+      const dir = sp.length === 1 && FS.isDir(sp[0]) ? sp[0] : null;
+      UI.menu(e.clientX, e.clientY, FileOps.itemMenu(sp, { dir: path, rename: startRename, extra: dir ? [
+        { label: 'Открыть в новой вкладке', icon: 'tab', action: () => newTab(dir) },
+        { label: isPinned(dir) ? 'Открепить от быстрого доступа' : 'Закрепить в быстром доступе', icon: 'pin', action: () => togglePin(dir) },
+      ] : [] }));
       return;
     }
     select([]);
@@ -576,7 +806,14 @@ function openExplorer(args = {}) {
     const ids = items.map(i => i.id);
     const sp = selectedPaths();
     const k = e.key;
-    if (e.altKey && k === 'ArrowLeft') back();
+    if (e.ctrlKey && e.code === 'KeyT') newTab();
+    else if (e.ctrlKey && e.code === 'KeyW') closeTab(curTab);
+    else if (e.ctrlKey && k === 'Tab') switchTab((curTab + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length);
+    else if (e.ctrlKey && !e.shiftKey && /^Digit[1-9]$/.test(e.code)) switchTab(e.code === 'Digit9' ? tabs.length - 1 : +e.code.slice(5) - 1);
+    else if (e.ctrlKey && e.shiftKey && /^Digit[1-7]$/.test(e.code)) Store.set('explorerView', VIEWS[+e.code.slice(5) - 1][0]);
+    else if ((e.ctrlKey && e.code === 'KeyL') || (e.altKey && e.code === 'KeyD')) addr.click();
+    else if (e.altKey && e.code === 'KeyP') setPane(e.shiftKey ? 'details' : 'preview');
+    else if (e.altKey && k === 'ArrowLeft') back();
     else if (e.altKey && k === 'ArrowRight') fwd();
     else if (e.altKey && k === 'ArrowUp') up();
     else if (k === 'Backspace') back();
@@ -590,8 +827,8 @@ function openExplorer(args = {}) {
     else if (e.ctrlKey && e.code === 'KeyX') { if (sp.length) FileOps.cut(sp); }
     else if (e.ctrlKey && e.code === 'KeyV') paste();
     else if (e.ctrlKey && e.code === 'KeyF') { $('.ex-search input', b).focus(); }
-    else if (e.ctrlKey && e.code === 'KeyN') Apps.launch('explorer', { path });
     else if (e.ctrlKey && e.shiftKey && e.code === 'KeyN') { if (isReal()) { const p = FileOps.newFolder(path); if (p) { render(); startRename(p); } } }
+    else if (e.ctrlKey && e.code === 'KeyN') Apps.launch('explorer', { path, newWindow: true });
     else if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(k) && ids.length) {
       let cols = 1;
       if (content.classList.contains('v-grid')) {
@@ -608,9 +845,19 @@ function openExplorer(args = {}) {
       n = clamp(n, 0, ids.length - 1);
       select([ids[n]]);
       items[n].el?.scrollIntoView({ block: 'nearest' });
+    } else if (k.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && k !== ' ' && ids.length) {
+      // быстрый переход: набрать начало имени
+      clearTimeout(typeT);
+      typed = (typed + k).toLowerCase();
+      typeT = setTimeout(() => { typed = ''; }, 900);
+      const start = typed.length === 1 ? Math.max(0, ids.indexOf(anchor) + 1) : Math.max(0, ids.indexOf(anchor));
+      const order = [...items.slice(start), ...items.slice(0, start)];
+      const hit = order.find(i => i.label.toLowerCase().startsWith(typed));
+      if (hit) { select([hit.id]); hit.el?.scrollIntoView({ block: 'nearest' }); }
     } else return;
     e.preventDefault();
   });
+  let typed = '', typeT = 0;
 
   // ---------- Перетаскивание ----------
   content.addEventListener('dragstart', e => {
@@ -647,10 +894,11 @@ function openExplorer(args = {}) {
     render();
     select(keep.filter(id => items.some(i => i.id === id)), true);
   }, 40);
-  const offs = [FS.on('change', rerender), FileOps.on('clip', rerender), FileOps.on('recent', rerender), Store.on('explorerView', rerender), Store.on('showExtensions', rerender)];
+  const offs = [FS.on('change', rerender), FileOps.on('clip', rerender), FileOps.on('recent', rerender), Store.on('explorerView', rerender), Store.on('showExtensions', rerender), Store.on('showHidden', rerender), Store.on('explorerClick', rerender), Store.on('explorerChecks', rerender)];
   win.onClose = () => offs.forEach(f => f());
-  win.onArgs = a => a.path && go(a.path);
+  win.onArgs = a => { if (a.path) { if (a.newTab || tabs.length > 1 || path !== 'home://') newTab(a.path); else go(a.path); } };
 
+  if (!SPECIAL[path]) { const parts = FS.split(path); for (let i = 1; i < parts.length; i++) treeOpen.add(parts.slice(0, i).join('/').toLowerCase()); treeOpen.add('thispc://'); }
   render();
   if (args.select) { const it = items.find(i => i.id.toLowerCase() === FS.realPath(args.select)?.toLowerCase()); if (it) { select([it.id]); it.el?.scrollIntoView({ block: 'nearest' }); } }
   content.focus({ preventScroll: true });

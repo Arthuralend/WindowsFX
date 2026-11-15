@@ -228,8 +228,8 @@ const FileOps = (() => {
     if (t.kind === 'audio') list.unshift(['fxplayer', 'Видеоплеер']);
     if (t.kind === 'archive') list.unshift(['winarch', 'WinArchivator']);
     if (t.kind === 'pdf') list.unshift(['pdf', 'Просмотр PDF']);
-    if (t.kind === 'doc' || t.kind === 'text') list.unshift(['lexicon', 'Lexicon']);
-    if (t.kind === 'sheet' || FS.ext(path) === 'csv') list.unshift(['tabs', 'Tabs']);
+    if (t.kind === 'doc' || t.kind === 'text') list.unshift(['lexicon', 'Документы']);
+    if (t.kind === 'sheet' || FS.ext(path) === 'csv') list.unshift(['tabs', 'Таблицы']);
     if (t.kind === 'image' || t.kind === 'psd') list.unshift(['photostore', 'Photostore']);
     const items = list.filter(([a]) => Apps.get(a)).map(([a, n]) => ({ label: n, icon: 'app:' + Apps.get(a).icon, action: () => openWith(path, a) }));
     if (FS.isDevice(path)) items.push({ sep: true }, { label: FX.extLabel, icon: 'external', action: () => FX.call('openExternal', FS.toNative(path), true) });
@@ -245,6 +245,7 @@ const FileOps = (() => {
     const prot = paths.some(FS.isProtected);
     return [
       { label: 'Открыть', icon: 'folder-open', shortcut: 'Enter', action: () => paths.forEach(open) },
+      ...(ctx.extra || []),
       single && t.kind === 'folder' ? { label: 'Открыть в новом окне', icon: 'external', action: () => Apps.launch('explorer', { path: p, newWindow: true }) } : null,
       single && t.kind === 'folder' ? { label: 'Открыть в терминале', icon: 'terminal', action: () => Apps.launch('terminal', { cwd: p }) } : null,
       single && node?.t === 'f' && !['lnk', 'exe'].includes(t.kind) ? { label: 'Открыть с помощью', icon: 'apps', items: openWithItems(p) } : null,

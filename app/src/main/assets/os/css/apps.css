@@ -70,6 +70,61 @@
 .ex-pv-meta b { color: var(--fg); word-break: break-word; }
 .ex-pv-empty { padding: 30px 6px; text-align: center; }
 @media (max-width: 700px) { .ex-side { display: none; } .ex-search { width: 130px; } }
+/* вкладки Проводника */
+.ex-win .win-title-text { display: none; }
+.ex-tabs .ex-tab { width: 190px; }
+.ex-tab-t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ex-tab .ex-tab-x { width: 22px; height: 22px; opacity: .7; }
+.ex-tab:not(.on):not(:hover) .ex-tab-x { visibility: hidden; }
+/* дерево папок */
+.ex-tree-row { gap: 6px; padding: 5px 8px 5px calc(4px + var(--d, 0) * 16px); }
+.ex-tree-tw { width: 18px; height: 18px; display: grid; place-items: center; flex-shrink: 0; border-radius: 4px; color: var(--fg-3); }
+.ex-tree-tw:hover { background: var(--press); color: var(--fg); }
+.ex-tree-tw.leaf { visibility: hidden; }
+.ex-tree-tw svg { transition: transform .12s; }
+.ex-tree-row.open > .ex-tree-tw svg { transform: rotate(90deg); }
+.ex-touch .ex-tree-row { padding-top: 8px; padding-bottom: 8px; }
+.ex-side { width: 240px; }
+/* «>» в адресной строке и подсказки папок */
+.crumb-sep { display: inline-grid; place-items: center; width: 18px; height: 22px; border-radius: 4px; }
+.crumb-sep:hover { background: var(--hover); color: var(--fg); }
+.ex-ac { position: fixed; z-index: 99990; background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: var(--shadow); padding: 4px; max-height: 320px; overflow: auto; }
+.ex-ac > div { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; font-size: .9rem; }
+.ex-ac > div:hover, .ex-ac > div.on { background: var(--hover); }
+/* виды */
+.ex-item { position: relative; }
+.v-xl .ex-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.v-medium .ex-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 2px; }
+.v-xl .ex-item, .v-medium .ex-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; text-align: center; }
+.v-xl .ex-label, .v-medium .ex-label { font-size: .85rem; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.v-small .ex-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1px; }
+.v-small .ex-item { display: flex; align-items: center; gap: 6px; padding: 3px 8px; font-size: .86rem; }
+.v-small .ex-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v-tiles .ex-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 4px; }
+.v-tiles .ex-item { display: flex; align-items: center; gap: 12px; padding: 8px 10px; }
+.ex-tile-t { display: flex; flex-direction: column; min-width: 0; font-size: .8rem; color: var(--fg-2); }
+.ex-tile-t .ex-label { font-size: .9rem; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ex-dhead, .ex-row { grid-template-columns: var(--ex-cols, minmax(200px, 2fr) 1.2fr 1.2fr 90px); }
+.ex-dhead > div { position: relative; }
+.ex-col-rs { position: absolute; right: -8px; top: -2px; bottom: -2px; width: 10px; cursor: col-resize; z-index: 1; }
+.ex-col-rs::after { content: ""; position: absolute; left: 4px; top: 4px; bottom: 4px; width: 1px; background: var(--line-2); }
+/* флажки выделения */
+.ex-chk { display: none; place-items: center; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--fg-3); background: var(--surface-2); color: var(--accent-fg); flex-shrink: 0; }
+.ex-chk svg { opacity: 0; }
+.ex-item.sel .ex-chk { background: var(--accent); border-color: var(--accent); }
+.ex-item.sel .ex-chk svg { opacity: 1; }
+.ex-checks .ex-item:hover .ex-chk, .ex-checks .ex-item.sel .ex-chk, .ex-touch .ex-checks .ex-chk { display: grid; }
+.v-grid .ex-chk, .v-xl .ex-chk, .v-medium .ex-chk, .v-tiles .ex-chk { position: absolute; top: 5px; left: 5px; }
+.ex-touch .v-grid .ex-item, .ex-touch .v-medium .ex-item { padding-top: 14px; }
+.ex-touch .ex-row, .ex-touch .v-list .ex-item, .ex-touch .v-small .ex-item { padding-top: 9px; padding-bottom: 9px; }
+/* область просмотра и сведений */
+.ex-preview { width: 280px; gap: 12px; }
+.ex-pv-icon { display: grid; place-items: center; padding: 16px 0; }
+.ex-pv-props { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: .84rem; }
+.ex-pv-props dt { color: var(--fg-2); }
+.ex-pv-props dd { margin: 0; word-break: break-word; }
+.ex-pv-acts { display: flex; gap: 6px; }
+video.ex-pv-img { background: #000; }
 
 /* ---------- Параметры ---------- */
 .st { flex-direction: row !important; }

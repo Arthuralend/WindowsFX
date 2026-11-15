@@ -6,7 +6,7 @@ on:
     paths-ignore: [ ".github/workflows/craft-web.yml", "tools/**" ]
   workflow_dispatch:
   workflow_run:
-    workflows: [ "Build Craft engines (Lexicon, Tabs, Photostore)" ]
+    workflows: [ "Build Craft engines (Документы, Таблицы, Photostore)" ]
     types: [ completed ]
 
 permissions:
