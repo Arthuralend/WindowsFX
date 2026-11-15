@@ -1,7 +1,7 @@
 /* WindowsFX: общий буфер обмена с Android.
    В Android WebView navigator.clipboard работает не полностью: readText()/read() запрещены,
-   а write() с HTML (так Lexicon и Tabs копируют таблицы) доходит до системы не на всех версиях.
-   Здесь navigator.clipboard рабочего стола и окон Lexicon / Tabs / Photostore заменяется
+   а write() с HTML (так Документы и Таблицы копируют таблицы) доходит до системы не на всех версиях.
+   Здесь navigator.clipboard рабочего стола и окон Документов / Таблиц / Photostore заменяется
    на системный буфер Android (FXNative.clipRead / clipWrite):
      - скопированное в WindowsFX сразу доступно в других Android-приложениях (текст и HTML-таблицы);
      - скопированное в Android вставляется в WindowsFX (кнопки «Вставить», Ctrl+V, readText()).
@@ -92,7 +92,7 @@ const Clip = (() => {
   }
 
   /** Вставить содержимое буфера Android в документ doc так, как это сделал бы Ctrl+V:
-   *  событием paste с текстом и HTML (Lexicon и Tabs принимают таблицы именно так). */
+   *  событием paste с текстом и HTML (Документы и Таблицы принимают таблицы именно так). */
   function pasteInto(doc) {
     const d = native ? readSystem() : null;
     if (!d || d.empty) return false;

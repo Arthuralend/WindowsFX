@@ -1,11 +1,15 @@
-name: Build Craft engines (Lexicon, Tabs, Photostore)
+name: Build Craft engines (Документы, Таблицы, Photostore)
 
-# Builds the WebAssembly versions of WordCraft, GridCraft and PhotoCraft (MIT OR Apache-2.0)
-# as Lexicon, Tabs and Photostore, with the WindowsFX changes:
-#   - tools/craft-patch.sh: product names, no community links, Russian interface on the web,
-#     the Photostore mark, Russian spelling dictionary for Lexicon;
-#   - tools/patch-egui-wgpu.sh: egui-wgpu asks the GPU only for the texture size it supports.
-# Results go to the "craft-assets" release; the APK build downloads them from there.
+# Builds the WebAssembly office apps of WindowsFX / Monomach:
+#   - Документы — apps/wordcraft-web of Arthuralend/Documents-Tabes (Lexicon: WordCraft with Russian spelling,
+#     themes and «Расчёты»);
+#   - Таблицы — tables/ of Arthuralend/Documents-Tabes (GridCraft with the Lexicon changes); the browser entry
+#     point apps/gridcraft-web comes from storytold/gridcraft at the commit these sources were taken from;
+#   - Photostore — PhotoCraft with the WindowsFX changes (tools/craft-patch.sh).
+# Every engine gets tools/patch-egui-wgpu.sh (ask the GPU only for the texture size it supports: Android WebView).
+# Results go to the "craft-assets" release under the old file names (wordcraft-web.zip, gridcraft-web.zip,
+# photocraft-web.zip), so the APK build, the Mac build and the server installer pick them up unchanged.
+# After a change in Documents-Tabes run this workflow by hand (Actions → Run workflow).
 
 on:
   workflow_dispatch:
@@ -24,12 +28,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - app: wordcraft
-            ref: d588e0b87329975d0b06a9cf91e4d7d2ebacb0f8
-          - app: gridcraft
-            ref: 66ce6be4743f4227047f76f56815520f824e6d81
-          - app: photocraft
+          - app: wordcraft        # → Документы
+            repo: Arthuralend/Documents-Tabes
+            ref: main
+            ws: .
+            web: apps/wordcraft-web
+          - app: gridcraft        # → Таблицы
+            repo: Arthuralend/Documents-Tabes
+            ref: main
+            ws: tables
+            web: apps/gridcraft-web
+            gridcraft_web_from: 1f4c67ef0a0200e48d832c7cbbb5570b743b7837
+          - app: photocraft       # → Photostore
+            repo: storytold/photocraft
             ref: d95fdf3181c01ad41e95456091a394b105a9afb2
+            ws: .
+            patch: true
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +51,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          repository: storytold/${{ matrix.app }}
+          repository: ${{ matrix.repo }}
           ref: ${{ matrix.ref }}
           path: src
           lfs: true
@@ -46,16 +60,27 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Browser entry point for Таблицы (storytold/gridcraft apps/gridcraft-web)
+        if: matrix.gridcraft_web_from
+        run: |
+          git clone -q --filter=blob:none --no-checkout https://github.com/storytold/gridcraft gc
+          git -C gc archive ${{ matrix.gridcraft_web_from }} apps/gridcraft-web | tar -x -C src/${{ matrix.ws }}
+          ls src/${{ matrix.ws }}/apps
+          # название и заставка загрузки — по-русски, как в остальной программе
+          sed -i 's#<title>GridCraft</title>#<title>Таблицы</title>#; s#Loading GridCraft&hellip;#Загрузка Таблиц\&hellip;#' src/${{ matrix.ws }}/apps/gridcraft-web/index.html
+          grep -n "<title>\|_loading\">" src/${{ matrix.ws }}/apps/gridcraft-web/index.html
+
       - name: WindowsFX changes (names, links, language, dictionary)
+        if: matrix.patch
         run: bash wfx/tools/craft-patch.sh ${{ matrix.app }} src
 
       - name: Patch egui-wgpu (GPU texture limit)
-        run: bash wfx/tools/patch-egui-wgpu.sh src
+        run: bash wfx/tools/patch-egui-wgpu.sh src/${{ matrix.ws }}
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src
-          key: ${{ matrix.app }}
+          workspaces: src/${{ matrix.ws }}
+          key: ${{ matrix.app }}-${{ matrix.repo }}
 
       - name: Install trunk
         run: |
@@ -63,23 +88,33 @@ jobs:
           trunk --version
 
       - name: Build and package
-        working-directory: src
         env:
           DIST: ${{ github.workspace }}/out
         run: |
           mkdir -p "$DIST"
-          bash packaging/web/package.sh
-          cd "$DIST"
-          ZIP=$(ls ${{ matrix.app }}-web-*.zip | head -1)
-          mv "$ZIP" ${{ matrix.app }}-web.zip
-          ls -lh
+          if [ -n "${{ matrix.web }}" ]; then
+            # Документы, Таблицы: trunk → dist/web, упакованный как <app>-web/… (как package.sh у Craft)
+            (cd "src/${{ matrix.ws }}/${{ matrix.web }}" && trunk build --release)
+            SITE="src/${{ matrix.ws }}/dist/web"
+            rm -f "$SITE/.trunk-lock"
+            W=$(mktemp -d); mkdir -p "$W/${{ matrix.app }}-web"
+            cp -R "$SITE/." "$W/${{ matrix.app }}-web/"
+            cp src/LICENSE-MIT src/LICENSE-APACHE src/NOTICE "$W/${{ matrix.app }}-web/" 2>/dev/null || true
+            (cd "$W" && zip -qr9 "$DIST/${{ matrix.app }}-web.zip" "${{ matrix.app }}-web")
+          else
+            (cd src && bash packaging/web/package.sh)
+            cd "$DIST"
+            ZIP=$(ls ${{ matrix.app }}-web-*.zip | head -1)
+            mv "$ZIP" ${{ matrix.app }}-web.zip
+          fi
+          ls -lh "$DIST"
 
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
           tag_name: craft-assets
-          name: Craft engines (Lexicon, Tabs, Photostore)
-          body: "Web builds of WordCraft, GridCraft and PhotoCraft (MIT OR Apache-2.0) used by WindowsFX as Lexicon, Tabs and Photostore (tools/craft-patch.sh), with egui-wgpu limited to the GPU's texture size."
+          name: Craft engines (Документы, Таблицы, Photostore)
+          body: "Web builds used by WindowsFX and Monomach: Документы and Таблицы from Arthuralend/Documents-Tabes (WordCraft and GridCraft with the Lexicon changes), Photostore from PhotoCraft (tools/craft-patch.sh); MIT OR Apache-2.0. egui-wgpu is limited to the GPU's texture size."
           files: out/${{ matrix.app }}-web.zip
           prerelease: true
           make_latest: false

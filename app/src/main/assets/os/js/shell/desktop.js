@@ -75,7 +75,7 @@ const Desktop = (() => {
   // Системные значки всегда первые, как в Windows: «Этот компьютер», затем «Корзина»
   const SYSTEM = ['Этот компьютер.lnk', BIN];
   // Порядок стандартных ярлыков без сортировки; остальные файлы идут следом по времени создания
-  const DEFAULT_ORDER = ['Документы.lnk', 'Браузер.lnk', 'Параметры.lnk', 'Терминал.lnk', 'Paint.lnk', 'Сапёр.lnk', 'Ассистент.lnk', 'DOOM.lnk', 'Прочти меня.txt'];
+  const DEFAULT_ORDER = ['Папка Документы.lnk', 'Документы.lnk', 'Таблицы.lnk', 'Браузер.lnk', 'Параметры.lnk', 'Терминал.lnk', 'Paint.lnk', 'Сапёр.lnk', 'Ассистент.lnk', 'DOOM.lnk', 'Прочти меня.txt'];
 
   function collect() {
     const list = [{ key: BIN, name: 'Корзина', special: 'bin' }];

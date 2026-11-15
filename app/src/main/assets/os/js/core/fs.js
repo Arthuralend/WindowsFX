@@ -65,9 +65,9 @@ const FS = (() => {
             'Рабочий стол': D({
               'Этот компьютер.lnk': lnk('explorer', { path: 'thispc://' }),
               'Браузер.lnk': lnk('browser'),
-              'Документы.lnk': lnk('explorer', { path: P.docs }),
-              'Lexicon.lnk': lnk('lexicon'),
-              'Tabs.lnk': lnk('tabs'),
+              'Папка Документы.lnk': lnk('explorer', { path: P.docs }),
+              'Документы.lnk': lnk('lexicon'),
+              'Таблицы.lnk': lnk('tabs'),
               'Photostore.lnk': lnk('photostore'),
               'WinArchivator.lnk': lnk('winarch'),
               'Видеоплеер.lnk': lnk('fxplayer'),

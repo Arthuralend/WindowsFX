@@ -1,4 +1,4 @@
-/* WindowsFX: подключается внутри окна Lexicon / Tabs / Photostore.
+/* WindowsFX: подключается внутри окна Документов / Таблиц / Photostore.
    Направляет «Открыть» и «Сохранить» этих приложений в файлы WindowsFX. */
 (function () {
   'use strict';
@@ -25,7 +25,7 @@
   } catch (e) {}
   document.documentElement.style.background = '#1e1e1e';
 
-  // 0c) Общий буфер обмена с Android: копирование в Lexicon / Tabs / Photostore попадает в буфер Android
+  // 0c) Общий буфер обмена с Android: копирование в Документов / Таблиц / Photostore попадает в буфер Android
   //     (таблицы — вместе с HTML), «Вставить из буфера Android» в заголовке окна вставляет скопированное
   //     в других приложениях. До запуска движка — он берёт navigator.clipboard при каждом копировании.
   try { if (window.parent !== window && window.parent.FXClip) window.parent.FXClip.install(window); } catch (e) {}
@@ -44,7 +44,7 @@
     (t.tagName === 'INPUT' ? t : c).dispatchEvent(new KeyboardEvent(type, o));
   };
 
-  // 5b) Языки ввода WindowsFX (ENG / РУС / ՀԱՅ) и в окнах Lexicon, Tabs, Photostore
+  // 5b) Языки ввода WindowsFX (ENG / РУС / ՀԱՅ) и в окнах Документах, Таблицах, Photostore
   window.addEventListener('keydown', function (e) {
     var K;
     try { K = window.parent !== window && window.parent.Kbd; } catch (err) { K = null; }
@@ -240,7 +240,9 @@
   // 1) «Сохранить как» через File System Access API (WordCraft вызывает его сам)
   window.showSaveFilePicker = function (opts) {
     opts = opts || {};
-    return H.pickSave(appId, opts.suggestedName || 'document', opts.types || []).then(function (path) {
+    // Promise из окна самого приложения: Таблицы (wasm-bindgen) проверяют instanceof Promise,
+    // и обещание из окна WindowsFX для них «не обещание» — сохранение молча отменялось.
+    return Promise.resolve(H.pickSave(appId, opts.suggestedName || 'document', opts.types || [])).then(function (path) {
       if (!path) throw abort();
       return {
         kind: 'file',
@@ -253,13 +255,13 @@
               parts.push(d);
               return Promise.resolve();
             },
-            close: function () { return H.save(appId, path, new Blob(parts)); },
+            close: function () { return Promise.resolve(H.save(appId, path, new Blob(parts))); },
             abort: function () { return Promise.resolve(); },
             truncate: function () { return Promise.resolve(); },
             seek: function () { return Promise.resolve(); },
           });
         },
-        getFile: function () { return H.fileFor(path); },
+        getFile: function () { return Promise.resolve(H.fileFor(path)); },
         queryPermission: function () { return Promise.resolve('granted'); },
         requestPermission: function () { return Promise.resolve('granted'); },
       };

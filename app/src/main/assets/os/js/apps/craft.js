@@ -1,16 +1,17 @@
-/* Lexicon, Tabs, Photostore: офисные и графические приложения на WebAssembly в окнах WindowsFX.
-   Движки — открытый код (MIT OR Apache-2.0), собираются с изменениями WindowsFX (tools/craft-patch.sh). */
+/* Документы, Таблицы, Photostore: офисные и графические приложения на WebAssembly в окнах WindowsFX.
+   Документы и Таблицы — сборки Arthuralend/Documents-Tabes (на основе WordCraft и GridCraft),
+   Photostore — PhotoCraft; всё — открытый код (MIT OR Apache-2.0). Сборка: .github/workflows/craft-web.yml. */
 'use strict';
 
 const CraftApps = {
   lexicon: {
-    name: 'Lexicon', icon: 'lexicon', engine: 'WordCraft', desc: 'Текстовый редактор, аналог Word',
-    keywords: 'word ворд документ текст docx редактор wordcraft lexicon', kinds: ['doc', 'text'], exts: ['docx', 'doc', 'odt', 'rtf', 'txt', 'md', 'html'],
+    name: 'Документы', icon: 'lexicon', engine: 'WordCraft', desc: 'Текстовый редактор с проверкой орфографии, аналог Word',
+    keywords: 'документы word ворд документ текст docx редактор wordcraft lexicon лексикон', kinds: ['doc', 'text'], exts: ['docx', 'doc', 'odt', 'rtf', 'txt', 'md', 'html'],
     defExt: 'docx', dir: () => FS.P.docs, width: 1100, height: 760,
   },
   tabs: {
-    name: 'Tabs', icon: 'tabs', engine: 'GridCraft', desc: 'Электронные таблицы, аналог Excel',
-    keywords: 'excel эксель таблица xlsx csv gridcraft tabs', kinds: ['sheet'], exts: ['xlsx', 'xls', 'ods', 'csv'],
+    name: 'Таблицы', icon: 'tabs', engine: 'GridCraft', desc: 'Электронные таблицы, аналог Excel',
+    keywords: 'таблицы excel эксель таблица xlsx csv gridcraft tabs', kinds: ['sheet'], exts: ['xlsx', 'xls', 'ods', 'csv'],
     defExt: 'xlsx', dir: () => FS.P.docs, width: 1160, height: 760,
   },
   photostore: {
@@ -32,8 +33,11 @@ const CraftHost = (() => {
   }
 
   async function fileFor(path) {
-    const res = await fetch(FS.url(path));
-    const blob = await res.blob();
+    // текст на виртуальном диске хранится как есть (а не как адрес) — отдаём его содержимым
+    const n = FS.get(path);
+    const blob = n && !n.dev && typeof n.c === 'string' && !/^(data:|blob:|https?:|\/)/.test(n.c)
+      ? new Blob([n.c], { type: 'text/plain' })
+      : await (await fetch(FS.url(path))).blob();
     return new File([blob], FS.basename(path), { type: blob.type || '', lastModified: FS.get(path)?.mt || Date.now() });
   }
 
@@ -133,7 +137,7 @@ function openCraft(appId, args = {}) {
     e.titleT = setInterval(() => {
       try {
         const t = frame.contentDocument?.title || '';
-        if (!e.path && t && !/^(WordCraft|GridCraft|PhotoCraft|Lexicon|Tabs|Photostore)$/i.test(t)) win.setTitle(t.replace(/(WordCraft|GridCraft|PhotoCraft|Lexicon|Tabs|Photostore)/g, def.name));
+        if (!e.path && t && !/^(WordCraft|GridCraft|PhotoCraft|Lexicon|Tabs|Photostore|Документы|Таблицы)$/i.test(t)) win.setTitle(t.replace(/(WordCraft|GridCraft|PhotoCraft|Lexicon|Tabs|Photostore)/g, def.name));
       } catch {}
     }, 2000);
   });
@@ -155,7 +159,7 @@ Object.entries(CraftApps).forEach(([id, def]) => Apps.register({
 }));
 window.CraftHost = CraftHost;
 
-// Клавиши навигации: пока клавиатура в окне Lexicon / Tabs / Photostore, Android отдаёт стрелки
+// Клавиши навигации: пока клавиатура в окне Документов / Таблиц / Photostore, Android отдаёт стрелки
 // напрямую (FXHost.key), минуя поле ввода — иначе экранная клавиатура может их «съесть».
 (function craftKeys() {
   let routed = false;

@@ -8,6 +8,19 @@ set -euo pipefail
 WS="$1"
 VER=$(awk '/^name = "egui-wgpu"$/ { getline; gsub(/version = |"/, ""); print; exit }' "$WS/Cargo.lock")
 [ -n "$VER" ] || { echo "egui-wgpu not in $WS/Cargo.lock"; exit 1; }
+SRCLINE=$(awk '/^name = "egui-wgpu"$/ { getline; getline; print; exit }' "$WS/Cargo.lock")
+# egui из git (форк storytold/egui, как в Таблицах): правим исходник в checkout, который скачал cargo
+if printf '%s' "$SRCLINE" | grep -q 'git+'; then
+  (cd "$WS" && cargo fetch -q)
+  SRC=$(cd "$WS" && cargo metadata --format-version 1 2>/dev/null | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const p=JSON.parse(d).packages.find(x=>x.name==="egui-wgpu");console.log(p.manifest_path.replace(/Cargo\.toml$/,"src/setup.rs"))})')
+  [ -f "$SRC" ] || { echo "egui-wgpu checkout not found"; exit 1; }
+  sed -i 's/max_texture_dimension_2d: 8192,/max_texture_dimension_2d: adapter.limits().max_texture_dimension_2d.min(8192),/' "$SRC"
+  sed -i 's/\.\.base_limits$/..base_limits.or_worse_values_from(\&adapter.limits())/' "$SRC"
+  grep -q 'adapter.limits().max_texture_dimension_2d.min(8192)' "$SRC" || { echo "texture patch failed"; exit 1; }
+  grep -q 'or_worse_values_from(&adapter.limits())' "$SRC" || { echo "limits patch failed"; exit 1; }
+  echo "patched egui-wgpu (git checkout) $SRC"
+  exit 0
+fi
 # outside the workspace folder, so Cargo does not make it a workspace member
 DEST="$(cd "$WS/.." && pwd)/fx-patches"
 mkdir -p "$DEST"

@@ -4,11 +4,16 @@ on:
     branches: [main]
     paths: [ "web/**", "app/src/main/assets/os/**", ".github/workflows/build-mac.yml" ]
   workflow_dispatch:
+  # новые сборки Документов, Таблиц, Photostore → новый DMG
+  workflow_run:
+    workflows: [ "Build Craft engines (Документы, Таблицы, Photostore)" ]
+    types: [ completed ]
 permissions:
   contents: write
 jobs:
   mac:
     runs-on: macos-15
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v4
       - name: Build Monomach.app and DMG
